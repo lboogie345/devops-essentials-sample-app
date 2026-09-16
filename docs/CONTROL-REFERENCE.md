@@ -10,39 +10,55 @@ Counts are computed at generation time from `ansible/controls/disa-exports/RHEL8
 
 Implemented by the role: **29 of 29**.
 
+## Security categories
+
+Drift is monitored per category, not as one fleet-wide pass/fail. Each has its own read-only AAP drift audit, its own daily schedule and its own notification, all generated from this manifest by `scripts/stig/gen_aap_categories.py`.
+
+| Category | NIST family | Controls | Ansible tag | AAP drift audit |
+| --- | --- | ---: | --- | --- |
+| account-management | CM | 1 | `cat_account-management` | `STIG CAT II - Drift: account-management` |
+| audit-and-accountability | AU, CM | 2 | `cat_audit-and-accountability` | `STIG CAT II - Drift: audit-and-accountability` |
+| authentication | AC, CM, IA | 7 | `cat_authentication` | `STIG CAT II - Drift: authentication` |
+| filesystem-and-permissions | CM | 5 | `cat_filesystem-and-permissions` | `STIG CAT II - Drift: filesystem-and-permissions` |
+| network-hardening | CM, SC | 4 | `cat_network-hardening` | `STIG CAT II - Drift: network-hardening` |
+| privilege-escalation | AC, CM, IA | 4 | `cat_privilege-escalation` | `STIG CAT II - Drift: privilege-escalation` |
+| session-management | SC | 2 | `cat_session-management` | `STIG CAT II - Drift: session-management` |
+| software-integrity | CM | 2 | `cat_software-integrity` | `STIG CAT II - Drift: software-integrity` |
+| system-services-and-devices | CM, IA | 2 | `cat_system-services-and-devices` | `STIG CAT II - Drift: system-services-and-devices` |
+
 ## Index
 
-| # | STIG ID | Group ID | Severity | Approach | Enforced by |
-| ---: | --- | --- | --- | --- | --- |
-| 1 | [`RHEL-08-010019`](#rhel-08-010019) | V-256973 | CAT II | assisted | `RHEL-08-010019.yml` |
-| 2 | [`RHEL-08-010090`](#rhel-08-010090) | V-230229 | CAT II | assisted | `RHEL-08-010090.yml` |
-| 3 | [`RHEL-08-010358`](#rhel-08-010358) | V-256974 | CAT II | automated | `RHEL-08-010358.yml` |
-| 4 | [`RHEL-08-010379`](#rhel-08-010379) | V-251711 | CAT II | assisted | `RHEL-08-010379.yml` |
-| 5 | [`RHEL-08-010385`](#rhel-08-010385) | V-251712 | CAT II | automated | `RHEL-08-010385.yml` |
-| 6 | [`RHEL-08-010400`](#rhel-08-010400) | V-230274 | CAT II | assisted | `RHEL-08-010400.yml` |
-| 7 | [`RHEL-08-010455`](#rhel-08-010455) | V-272484 | CAT II | gated | `RHEL-08-010455.yml` |
-| 8 | [`RHEL-08-010490`](#rhel-08-010490) | V-230287 | CAT II | automated | `RHEL-08-010490.yml` |
-| 9 | [`RHEL-08-010590`](#rhel-08-010590) | V-230302 | CAT II | gated | `RHEL-08-010590.yml` |
-| 10 | [`RHEL-08-010731`](#rhel-08-010731) | V-244531 | CAT II | assisted | `RHEL-08-010731.yml` |
-| 11 | [`RHEL-08-010741`](#rhel-08-010741) | V-244532 | CAT II | assisted | `RHEL-08-010741.yml` |
-| 12 | [`RHEL-08-020017`](#rhel-08-020017) | V-230339 | CAT II | automated | `RHEL-08-020017.yml` |
-| 13 | [`RHEL-08-020035`](#rhel-08-020035) | V-257258 | CAT II | automated | `RHEL-08-020035.yml` |
-| 14 | [`RHEL-08-020090`](#rhel-08-020090) | V-230355 | CAT II | gated | `RHEL-08-020090.yml` |
-| 15 | [`RHEL-08-020101`](#rhel-08-020101) | V-251713 | CAT II | assisted | `RHEL-08-020101.yml` |
-| 16 | [`RHEL-08-020104`](#rhel-08-020104) | V-251716 | CAT II | automated | `RHEL-08-020104.yml` |
-| 17 | [`RHEL-08-020250`](#rhel-08-020250) | V-230372 | CAT II | gated | `RHEL-08-020250.yml` |
-| 18 | [`RHEL-08-020320`](#rhel-08-020320) | V-230379 | CAT II | gated | `RHEL-08-020320.yml` |
-| 19 | [`RHEL-08-020352`](#rhel-08-020352) | V-230384 | CAT II | assisted | `RHEL-08-020352.yml` |
-| 20 | [`RHEL-08-020360`](#rhel-08-020360) | V-279929 | CAT II | automated | `RHEL-08-020360.yml` |
-| 21 | [`RHEL-08-030655`](#rhel-08-030655) | V-274877 | CAT II | automated | `RHEL-08-030655.yml` |
-| 22 | [`RHEL-08-040030`](#rhel-08-040030) | V-230500 | CAT II | manual | `RHEL-08-040030.yml` |
-| 23 | [`RHEL-08-040137`](#rhel-08-040137) | V-244546 | CAT II | gated | `RHEL-08-040137.yml` |
-| 24 | [`RHEL-08-040140`](#rhel-08-040140) | V-230524 | CAT II | gated | `RHEL-08-040140.yml` |
-| 25 | [`RHEL-08-040221`](#rhel-08-040221) | V-284948 | CAT II | automated | `sysctl_network.yml` |
-| 26 | [`RHEL-08-040222`](#rhel-08-040222) | V-284949 | CAT II | automated | `sysctl_network.yml` |
-| 27 | [`RHEL-08-040287`](#rhel-08-040287) | V-284947 | CAT II | automated | `sysctl_network.yml` |
-| 28 | [`RHEL-08-040321`](#rhel-08-040321) | V-251718 | CAT II | gated | `RHEL-08-040321.yml` |
-| 29 | [`RHEL-08-040400`](#rhel-08-040400) | V-254520 | CAT II | gated | `RHEL-08-040400.yml` |
+| # | STIG ID | Security category | Group ID | Severity | Approach | Enforced by |
+| ---: | --- | --- | --- | --- | --- | --- |
+| 1 | [`RHEL-08-010019`](#rhel-08-010019) | software-integrity | V-256973 | CAT II | assisted | `RHEL-08-010019.yml` |
+| 2 | [`RHEL-08-010090`](#rhel-08-010090) | authentication | V-230229 | CAT II | assisted | `RHEL-08-010090.yml` |
+| 3 | [`RHEL-08-010358`](#rhel-08-010358) | audit-and-accountability | V-256974 | CAT II | automated | `RHEL-08-010358.yml` |
+| 4 | [`RHEL-08-010379`](#rhel-08-010379) | privilege-escalation | V-251711 | CAT II | assisted | `RHEL-08-010379.yml` |
+| 5 | [`RHEL-08-010385`](#rhel-08-010385) | privilege-escalation | V-251712 | CAT II | automated | `RHEL-08-010385.yml` |
+| 6 | [`RHEL-08-010400`](#rhel-08-010400) | authentication | V-230274 | CAT II | assisted | `RHEL-08-010400.yml` |
+| 7 | [`RHEL-08-010455`](#rhel-08-010455) | privilege-escalation | V-272484 | CAT II | gated | `RHEL-08-010455.yml` |
+| 8 | [`RHEL-08-010490`](#rhel-08-010490) | filesystem-and-permissions | V-230287 | CAT II | automated | `RHEL-08-010490.yml` |
+| 9 | [`RHEL-08-010590`](#rhel-08-010590) | filesystem-and-permissions | V-230302 | CAT II | gated | `RHEL-08-010590.yml` |
+| 10 | [`RHEL-08-010731`](#rhel-08-010731) | filesystem-and-permissions | V-244531 | CAT II | assisted | `RHEL-08-010731.yml` |
+| 11 | [`RHEL-08-010741`](#rhel-08-010741) | filesystem-and-permissions | V-244532 | CAT II | assisted | `RHEL-08-010741.yml` |
+| 12 | [`RHEL-08-020017`](#rhel-08-020017) | authentication | V-230339 | CAT II | automated | `RHEL-08-020017.yml` |
+| 13 | [`RHEL-08-020035`](#rhel-08-020035) | session-management | V-257258 | CAT II | automated | `RHEL-08-020035.yml` |
+| 14 | [`RHEL-08-020090`](#rhel-08-020090) | authentication | V-230355 | CAT II | gated | `RHEL-08-020090.yml` |
+| 15 | [`RHEL-08-020101`](#rhel-08-020101) | authentication | V-251713 | CAT II | assisted | `RHEL-08-020101.yml` |
+| 16 | [`RHEL-08-020104`](#rhel-08-020104) | authentication | V-251716 | CAT II | automated | `RHEL-08-020104.yml` |
+| 17 | [`RHEL-08-020250`](#rhel-08-020250) | authentication | V-230372 | CAT II | gated | `RHEL-08-020250.yml` |
+| 18 | [`RHEL-08-020320`](#rhel-08-020320) | account-management | V-230379 | CAT II | gated | `RHEL-08-020320.yml` |
+| 19 | [`RHEL-08-020352`](#rhel-08-020352) | filesystem-and-permissions | V-230384 | CAT II | assisted | `RHEL-08-020352.yml` |
+| 20 | [`RHEL-08-020360`](#rhel-08-020360) | session-management | V-279929 | CAT II | automated | `RHEL-08-020360.yml` |
+| 21 | [`RHEL-08-030655`](#rhel-08-030655) | audit-and-accountability | V-274877 | CAT II | automated | `RHEL-08-030655.yml` |
+| 22 | [`RHEL-08-040030`](#rhel-08-040030) | network-hardening | V-230500 | CAT II | manual | `RHEL-08-040030.yml` |
+| 23 | [`RHEL-08-040137`](#rhel-08-040137) | software-integrity | V-244546 | CAT II | gated | `RHEL-08-040137.yml` |
+| 24 | [`RHEL-08-040140`](#rhel-08-040140) | system-services-and-devices | V-230524 | CAT II | gated | `RHEL-08-040140.yml` |
+| 25 | [`RHEL-08-040221`](#rhel-08-040221) | network-hardening | V-284948 | CAT II | automated | `sysctl_network.yml` |
+| 26 | [`RHEL-08-040222`](#rhel-08-040222) | network-hardening | V-284949 | CAT II | automated | `sysctl_network.yml` |
+| 27 | [`RHEL-08-040287`](#rhel-08-040287) | network-hardening | V-284947 | CAT II | automated | `sysctl_network.yml` |
+| 28 | [`RHEL-08-040321`](#rhel-08-040321) | system-services-and-devices | V-251718 | CAT II | gated | `RHEL-08-040321.yml` |
+| 29 | [`RHEL-08-040400`](#rhel-08-040400) | privilege-escalation | V-254520 | CAT II | gated | `RHEL-08-040400.yml` |
 
 ---
 
@@ -56,6 +72,7 @@ Implemented by the role: **29 of 29**.
 | Group ID | V-256973 |
 | Rule ID | `SV-256973r1017373` |
 | Severity | CAT II |
+| Security category | `software-integrity` (NIST family CM) |
 | SRG | SRG-OS-000366-GPOS-00153 |
 | CCI | CCI-001749, CCI-003992 |
 | NIST 800-53 | CM-5 (3), CM-14 |
@@ -144,6 +161,7 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010019.yml`](../ansibl
 | Job tag | `RHEL-08-010019` |
 | Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
 | Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Category drift audit | `STIG CAT II - Drift: software-integrity` (read-only, daily, `--tags cat_software-integrity`) |
 | Approval | Tier approval node in the staged-rollout workflow. |
 | Evidence | `RHEL-08-010019` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
 
@@ -169,6 +187,7 @@ Tunables that steer this control, with their role defaults:
 | Group ID | V-230229 |
 | Rule ID | `SV-230229r1017048` |
 | Severity | CAT II |
+| Security category | `authentication` (NIST family IA) |
 | SRG | SRG-OS-000066-GPOS-00034 |
 | CCI | CCI-000185 |
 | NIST 800-53 | IA-5 (2), IA-5 (2) (a), IA-5 (2) (b) (1) |
@@ -239,6 +258,7 @@ Applicability: Not applicable where an approved alternate MFA method is used.
 | Job tag | `RHEL-08-010090` |
 | Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
 | Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Category drift audit | `STIG CAT II - Drift: authentication` (read-only, daily, `--tags cat_authentication`) |
 | Approval | Tier approval node in the staged-rollout workflow. |
 | Evidence | `RHEL-08-010090` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
 
@@ -265,6 +285,7 @@ Tunables that steer this control, with their role defaults:
 | Group ID | V-256974 |
 | Rule ID | `SV-256974r1069321` |
 | Severity | CAT II |
+| Security category | `audit-and-accountability` (NIST family CM) |
 | SRG | SRG-OS-000363-GPOS-00150 |
 | CCI | CCI-001744 |
 | NIST 800-53 | CM-3 (5) |
@@ -320,6 +341,7 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010358.yml`](../ansibl
 | Job tag | `RHEL-08-010358` |
 | Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
 | Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Category drift audit | `STIG CAT II - Drift: audit-and-accountability` (read-only, daily, `--tags cat_audit-and-accountability`) |
 | Approval | Tier approval node in the staged-rollout workflow. |
 | Evidence | `RHEL-08-010358` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
 
@@ -343,6 +365,7 @@ Tunables that steer this control, with their role defaults:
 | Group ID | V-251711 |
 | Rule ID | `SV-251711r1017365` |
 | Severity | CAT II |
+| Security category | `privilege-escalation` (NIST family CM) |
 | SRG | SRG-OS-000480-GPOS-00227 |
 | CCI | CCI-000366 |
 | NIST 800-53 | CM-6 b |
@@ -407,6 +430,7 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010379.yml`](../ansibl
 | Job tag | `RHEL-08-010379` |
 | Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
 | Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Category drift audit | `STIG CAT II - Drift: privilege-escalation` (read-only, daily, `--tags cat_privilege-escalation`) |
 | Approval | Tier approval node in the staged-rollout workflow. |
 | Evidence | `RHEL-08-010379` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
 
@@ -431,6 +455,7 @@ Tunables that steer this control, with their role defaults:
 | Group ID | V-251712 |
 | Rule ID | `SV-251712r1050789` |
 | Severity | CAT II |
+| Security category | `privilege-escalation` (NIST family IA) |
 | SRG | SRG-OS-000373-GPOS-00156 |
 | CCI | CCI-002038, CCI-004895 |
 | NIST 800-53 | IA-11, SC-11 b |
@@ -485,6 +510,7 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010385.yml`](../ansibl
 | Job tag | `RHEL-08-010385` |
 | Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
 | Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Category drift audit | `STIG CAT II - Drift: privilege-escalation` (read-only, daily, `--tags cat_privilege-escalation`) |
 | Approval | Tier approval node in the staged-rollout workflow. |
 | Evidence | `RHEL-08-010385` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
 
@@ -508,6 +534,7 @@ Tunables that steer this control, with their role defaults:
 | Group ID | V-230274 |
 | Rule ID | `SV-230274r1017089` |
 | Severity | CAT II |
+| Security category | `authentication` (NIST family IA) |
 | SRG | SRG-OS-000375-GPOS-00160 |
 | CCI | CCI-001948, CCI-004046 |
 | NIST 800-53 | IA-2 (11), IA-2 (6) (a) |
@@ -573,6 +600,7 @@ Applicability: Not applicable where an approved alternate MFA method is used.
 | Job tag | `RHEL-08-010400` |
 | Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
 | Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Category drift audit | `STIG CAT II - Drift: authentication` (read-only, daily, `--tags cat_authentication`) |
 | Approval | Tier approval node in the staged-rollout workflow. |
 | Evidence | `RHEL-08-010400` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
 
@@ -598,6 +626,7 @@ Tunables that steer this control, with their role defaults:
 | Group ID | V-272484 |
 | Rule ID | `SV-272484r1134875` |
 | Severity | CAT II |
+| Security category | `privilege-escalation` (NIST family AC) |
 | SRG | SRG-OS-000445-GPOS-00199 |
 | CCI | CCI-002235 |
 | NIST 800-53 | AC-6 (10) |
@@ -663,6 +692,7 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010455.yml`](../ansibl
 | Job tag | `RHEL-08-010455` |
 | Remediation template | `STIG CAT II - Remediate (Gated Control)` |
 | Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Category drift audit | `STIG CAT II - Drift: privilege-escalation` (read-only, daily, `--tags cat_privilege-escalation`) |
 | Approval | **Dedicated approval node, one control per launch.** |
 | Evidence | `RHEL-08-010455` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
 
@@ -688,6 +718,7 @@ Tunables that steer this control, with their role defaults:
 | Group ID | V-230287 |
 | Rule ID | `SV-230287r1208746` |
 | Severity | CAT II |
+| Security category | `filesystem-and-permissions` (NIST family CM) |
 | SRG | SRG-OS-000480-GPOS-00227 |
 | CCI | CCI-000366 |
 | NIST 800-53 | CM-6 b |
@@ -744,6 +775,7 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010490.yml`](../ansibl
 | Job tag | `RHEL-08-010490` |
 | Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
 | Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Category drift audit | `STIG CAT II - Drift: filesystem-and-permissions` (read-only, daily, `--tags cat_filesystem-and-permissions`) |
 | Approval | Tier approval node in the staged-rollout workflow. |
 | Evidence | `RHEL-08-010490` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
 
@@ -767,6 +799,7 @@ Tunables that steer this control, with their role defaults:
 | Group ID | V-230302 |
 | Rule ID | `SV-230302r1017112` |
 | Severity | CAT II |
+| Security category | `filesystem-and-permissions` (NIST family CM) |
 | SRG | SRG-OS-000480-GPOS-00227 |
 | CCI | CCI-000366 |
 | NIST 800-53 | CM-6 b |
@@ -827,6 +860,7 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010590.yml`](../ansibl
 | Job tag | `RHEL-08-010590` |
 | Remediation template | `STIG CAT II - Remediate (Gated Control)` |
 | Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Category drift audit | `STIG CAT II - Drift: filesystem-and-permissions` (read-only, daily, `--tags cat_filesystem-and-permissions`) |
 | Approval | **Dedicated approval node, one control per launch.** |
 | Evidence | `RHEL-08-010590` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
 
@@ -850,6 +884,7 @@ Tunables that steer this control, with their role defaults:
 | Group ID | V-244531 |
 | Rule ID | `SV-244531r1017338` |
 | Severity | CAT II |
+| Security category | `filesystem-and-permissions` (NIST family CM) |
 | SRG | SRG-OS-000480-GPOS-00227 |
 | CCI | CCI-000366 |
 | NIST 800-53 | CM-6 b |
@@ -907,6 +942,7 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010731.yml`](../ansibl
 | Job tag | `RHEL-08-010731` |
 | Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
 | Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Category drift audit | `STIG CAT II - Drift: filesystem-and-permissions` (read-only, daily, `--tags cat_filesystem-and-permissions`) |
 | Approval | Tier approval node in the staged-rollout workflow. |
 | Evidence | `RHEL-08-010731` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
 
@@ -929,6 +965,7 @@ Tunables that steer this control, with their role defaults:
 | Group ID | V-244532 |
 | Rule ID | `SV-244532r1101906` |
 | Severity | CAT II |
+| Security category | `filesystem-and-permissions` (NIST family CM) |
 | SRG | SRG-OS-000480-GPOS-00227 |
 | CCI | CCI-000366 |
 | NIST 800-53 | CM-6 b |
@@ -993,6 +1030,7 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010741.yml`](../ansibl
 | Job tag | `RHEL-08-010741` |
 | Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
 | Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Category drift audit | `STIG CAT II - Drift: filesystem-and-permissions` (read-only, daily, `--tags cat_filesystem-and-permissions`) |
 | Approval | Tier approval node in the staged-rollout workflow. |
 | Evidence | `RHEL-08-010741` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
 
@@ -1016,6 +1054,7 @@ Tunables that steer this control, with their role defaults:
 | Group ID | V-230339 |
 | Rule ID | `SV-230339r1017151` |
 | Severity | CAT II |
+| Security category | `authentication` (NIST family AC) |
 | SRG | SRG-OS-000021-GPOS-00005 |
 | CCI | CCI-000044 |
 | NIST 800-53 | AC-7 a |
@@ -1073,6 +1112,7 @@ Applicability: RHEL >= 8.2.
 | Job tag | `RHEL-08-020017` |
 | Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
 | Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Category drift audit | `STIG CAT II - Drift: authentication` (read-only, daily, `--tags cat_authentication`) |
 | Approval | Tier approval node in the staged-rollout workflow. |
 | Evidence | `RHEL-08-020017` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
 
@@ -1097,6 +1137,7 @@ Tunables that steer this control, with their role defaults:
 | Group ID | V-257258 |
 | Rule ID | `SV-257258r1069328` |
 | Severity | CAT II |
+| Security category | `session-management` (NIST family SC) |
 | SRG | SRG-OS-000163-GPOS-00072 |
 | CCI | CCI-001133 |
 | NIST 800-53 | SC-10 |
@@ -1158,6 +1199,7 @@ Applicability: RHEL >= 8.7.
 | Job tag | `RHEL-08-020035` |
 | Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
 | Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Category drift audit | `STIG CAT II - Drift: session-management` (read-only, daily, `--tags cat_session-management`) |
 | Approval | Tier approval node in the staged-rollout workflow. |
 | Evidence | `RHEL-08-020035` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
 
@@ -1183,6 +1225,7 @@ Tunables that steer this control, with their role defaults:
 | Group ID | V-230355 |
 | Rule ID | `SV-230355r1017168` |
 | Severity | CAT II |
+| Security category | `authentication` (NIST family IA) |
 | SRG | SRG-OS-000068-GPOS-00036 |
 | CCI | CCI-000187 |
 | NIST 800-53 | IA-5 (2), IA-5 (2) (c), IA-5 (2) (a) (2) |
@@ -1259,6 +1302,7 @@ Applicability: Not applicable where an approved alternate MFA method is used.
 | Job tag | `RHEL-08-020090` |
 | Remediation template | `STIG CAT II - Remediate (Gated Control)` |
 | Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Category drift audit | `STIG CAT II - Drift: authentication` (read-only, daily, `--tags cat_authentication`) |
 | Approval | **Dedicated approval node, one control per launch.** |
 | Evidence | `RHEL-08-020090` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
 
@@ -1285,6 +1329,7 @@ Tunables that steer this control, with their role defaults:
 | Group ID | V-251713 |
 | Rule ID | `SV-251713r1017366` |
 | Severity | CAT II |
+| Security category | `authentication` (NIST family CM) |
 | SRG | SRG-OS-000480-GPOS-00227 |
 | CCI | CCI-000366 |
 | NIST 800-53 | CM-6 b |
@@ -1340,6 +1385,7 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-020101.yml`](../ansibl
 | Job tag | `RHEL-08-020101` |
 | Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
 | Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Category drift audit | `STIG CAT II - Drift: authentication` (read-only, daily, `--tags cat_authentication`) |
 | Approval | Tier approval node in the staged-rollout workflow. |
 | Evidence | `RHEL-08-020101` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
 
@@ -1365,6 +1411,7 @@ Tunables that steer this control, with their role defaults:
 | Group ID | V-251716 |
 | Rule ID | `SV-251716r1069329` |
 | Severity | CAT II |
+| Security category | `authentication` (NIST family CM) |
 | SRG | SRG-OS-000480-GPOS-00227 |
 | CCI | CCI-000366 |
 | NIST 800-53 | CM-6 b |
@@ -1422,6 +1469,7 @@ Applicability: RHEL >= 8.4.
 | Job tag | `RHEL-08-020104` |
 | Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
 | Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Category drift audit | `STIG CAT II - Drift: authentication` (read-only, daily, `--tags cat_authentication`) |
 | Approval | Tier approval node in the staged-rollout workflow. |
 | Evidence | `RHEL-08-020104` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
 
@@ -1446,6 +1494,7 @@ Tunables that steer this control, with their role defaults:
 | Group ID | V-230372 |
 | Rule ID | `SV-230372r1017184` |
 | Severity | CAT II |
+| Security category | `authentication` (NIST family IA) |
 | SRG | SRG-OS-000105-GPOS-00052 |
 | CCI | CCI-000765 |
 | NIST 800-53 | IA-2 (1) |
@@ -1521,6 +1570,7 @@ Applicability: Not applicable where an approved alternate MFA method is used.
 | Job tag | `RHEL-08-020250` |
 | Remediation template | `STIG CAT II - Remediate (Gated Control)` |
 | Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Category drift audit | `STIG CAT II - Drift: authentication` (read-only, daily, `--tags cat_authentication`) |
 | Approval | **Dedicated approval node, one control per launch.** |
 | Evidence | `RHEL-08-020250` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
 
@@ -1546,6 +1596,7 @@ Tunables that steer this control, with their role defaults:
 | Group ID | V-230379 |
 | Rule ID | `SV-230379r1017190` |
 | Severity | CAT II |
+| Security category | `account-management` (NIST family CM) |
 | SRG | SRG-OS-000480-GPOS-00227 |
 | CCI | CCI-000366 |
 | NIST 800-53 | CM-6 b |
@@ -1605,6 +1656,7 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-020320.yml`](../ansibl
 | Job tag | `RHEL-08-020320` |
 | Remediation template | `STIG CAT II - Remediate (Gated Control)` |
 | Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Category drift audit | `STIG CAT II - Drift: account-management` (read-only, daily, `--tags cat_account-management`) |
 | Approval | **Dedicated approval node, one control per launch.** |
 | Evidence | `RHEL-08-020320` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
 
@@ -1631,6 +1683,7 @@ Tunables that steer this control, with their role defaults:
 | Group ID | V-230384 |
 | Rule ID | `SV-230384r1017193` |
 | Severity | CAT II |
+| Security category | `filesystem-and-permissions` (NIST family CM) |
 | SRG | SRG-OS-000480-GPOS-00228 |
 | CCI | CCI-000366 |
 | NIST 800-53 | CM-6 b |
@@ -1686,6 +1739,7 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-020352.yml`](../ansibl
 | Job tag | `RHEL-08-020352` |
 | Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
 | Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Category drift audit | `STIG CAT II - Drift: filesystem-and-permissions` (read-only, daily, `--tags cat_filesystem-and-permissions`) |
 | Approval | Tier approval node in the staged-rollout workflow. |
 | Evidence | `RHEL-08-020352` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
 
@@ -1710,6 +1764,7 @@ Tunables that steer this control, with their role defaults:
 | Group ID | V-279929 |
 | Rule ID | `SV-279929r1156340` |
 | Severity | CAT II |
+| Security category | `session-management` (NIST family SC) |
 | SRG | SRG-OS-000163-GPOS-00072 |
 | CCI | CCI-001133 |
 | NIST 800-53 | SC-10 |
@@ -1763,6 +1818,7 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-020360.yml`](../ansibl
 | Job tag | `RHEL-08-020360` |
 | Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
 | Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Category drift audit | `STIG CAT II - Drift: session-management` (read-only, daily, `--tags cat_session-management`) |
 | Approval | Tier approval node in the staged-rollout workflow. |
 | Evidence | `RHEL-08-020360` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
 
@@ -1789,6 +1845,7 @@ Tunables that steer this control, with their role defaults:
 | Group ID | V-274877 |
 | Rule ID | `SV-274877r1155381` |
 | Severity | CAT II |
+| Security category | `audit-and-accountability` (NIST family AU) |
 | SRG | SRG-OS-000471-GPOS-00215 |
 | CCI | CCI-000172 |
 | NIST 800-53 | AU-12 c |
@@ -1848,6 +1905,7 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-030655.yml`](../ansibl
 | Job tag | `RHEL-08-030655` |
 | Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
 | Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Category drift audit | `STIG CAT II - Drift: audit-and-accountability` (read-only, daily, `--tags cat_audit-and-accountability`) |
 | Approval | Tier approval node in the staged-rollout workflow. |
 | Evidence | `RHEL-08-030655` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
 
@@ -1872,6 +1930,7 @@ Tunables that steer this control, with their role defaults:
 | Group ID | V-230500 |
 | Rule ID | `SV-230500r1101900` |
 | Severity | CAT II |
+| Security category | `network-hardening` (NIST family CM) |
 | SRG | SRG-OS-000096-GPOS-00050 |
 | CCI | CCI-000382 |
 | NIST 800-53 | CM-7, CM-7 b |
@@ -1935,6 +1994,7 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-040030.yml`](../ansibl
 | Job tag | `RHEL-08-040030` |
 | Remediation template | **none** - no automatable fix |
 | Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Category drift audit | `STIG CAT II - Drift: network-hardening` (read-only, daily, `--tags cat_network-hardening`) |
 | Approval | Not applicable - no remediation template exists. |
 | Evidence | `RHEL-08-040030` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
 
@@ -1956,6 +2016,7 @@ Tunables that steer this control, with their role defaults:
 | Group ID | V-244546 |
 | Rule ID | `SV-244546r1208752` |
 | Severity | CAT II |
+| Security category | `software-integrity` (NIST family CM) |
 | SRG | SRG-OS-000368-GPOS-00154 |
 | CCI | CCI-001764 |
 | NIST 800-53 | CM-7 (2) |
@@ -2027,6 +2088,7 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-040137.yml`](../ansibl
 | Job tag | `RHEL-08-040137` |
 | Remediation template | `STIG CAT II - Remediate (Gated Control)` |
 | Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Category drift audit | `STIG CAT II - Drift: software-integrity` (read-only, daily, `--tags cat_software-integrity`) |
 | Approval | **Dedicated approval node, one control per launch.** |
 | Evidence | `RHEL-08-040137` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
 
@@ -2052,6 +2114,7 @@ Tunables that steer this control, with their role defaults:
 | Group ID | V-230524 |
 | Rule ID | `SV-230524r1155418` |
 | Severity | CAT II |
+| Security category | `system-services-and-devices` (NIST family IA) |
 | SRG | SRG-OS-000378-GPOS-00163 |
 | CCI | CCI-001958 |
 | NIST 800-53 | IA-3 |
@@ -2114,6 +2177,7 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-040140.yml`](../ansibl
 | Job tag | `RHEL-08-040140` |
 | Remediation template | `STIG CAT II - Remediate (Gated Control)` |
 | Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Category drift audit | `STIG CAT II - Drift: system-services-and-devices` (read-only, daily, `--tags cat_system-services-and-devices`) |
 | Approval | **Dedicated approval node, one control per launch.** |
 | Evidence | `RHEL-08-040140` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
 
@@ -2137,6 +2201,7 @@ Tunables that steer this control, with their role defaults:
 | Group ID | V-284948 |
 | Rule ID | `SV-284948r1208757` |
 | Severity | CAT II |
+| Security category | `network-hardening` (NIST family SC) |
 | SRG | SRG-OS-000420-GPOS-00186 |
 | CCI | CCI-002386 |
 | NIST 800-53 | SC-5 |
@@ -2197,6 +2262,7 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/sysctl_network.yml`](../ansibl
 | Job tag | `RHEL-08-040221` |
 | Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
 | Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Category drift audit | `STIG CAT II - Drift: network-hardening` (read-only, daily, `--tags cat_network-hardening`) |
 | Approval | Tier approval node in the staged-rollout workflow. |
 | Evidence | `RHEL-08-040221` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
 
@@ -2222,6 +2288,7 @@ Tunables that steer this control, with their role defaults:
 | Group ID | V-284949 |
 | Rule ID | `SV-284949r1208759` |
 | Severity | CAT II |
+| Security category | `network-hardening` (NIST family SC) |
 | SRG | SRG-OS-000420-GPOS-00186 |
 | CCI | CCI-002386 |
 | NIST 800-53 | SC-5 |
@@ -2282,6 +2349,7 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/sysctl_network.yml`](../ansibl
 | Job tag | `RHEL-08-040222` |
 | Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
 | Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Category drift audit | `STIG CAT II - Drift: network-hardening` (read-only, daily, `--tags cat_network-hardening`) |
 | Approval | Tier approval node in the staged-rollout workflow. |
 | Evidence | `RHEL-08-040222` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
 
@@ -2307,6 +2375,7 @@ Tunables that steer this control, with their role defaults:
 | Group ID | V-284947 |
 | Rule ID | `SV-284947r1210519` |
 | Severity | CAT II |
+| Security category | `network-hardening` (NIST family SC) |
 | SRG | SRG-OS-000420-GPOS-00186 |
 | CCI | CCI-002385 |
 | NIST 800-53 | SC-5, SC-5 a |
@@ -2369,6 +2438,7 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/sysctl_network.yml`](../ansibl
 | Job tag | `RHEL-08-040287` |
 | Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
 | Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Category drift audit | `STIG CAT II - Drift: network-hardening` (read-only, daily, `--tags cat_network-hardening`) |
 | Approval | Tier approval node in the staged-rollout workflow. |
 | Evidence | `RHEL-08-040287` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
 
@@ -2395,6 +2465,7 @@ Tunables that steer this control, with their role defaults:
 | Group ID | V-251718 |
 | Rule ID | `SV-251718r1017371` |
 | Severity | CAT II |
+| Security category | `system-services-and-devices` (NIST family CM) |
 | SRG | SRG-OS-000480-GPOS-00227 |
 | CCI | CCI-000366 |
 | NIST 800-53 | CM-6 b |
@@ -2449,6 +2520,7 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-040321.yml`](../ansibl
 | Job tag | `RHEL-08-040321` |
 | Remediation template | `STIG CAT II - Remediate (Gated Control)` |
 | Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Category drift audit | `STIG CAT II - Drift: system-services-and-devices` (read-only, daily, `--tags cat_system-services-and-devices`) |
 | Approval | **Dedicated approval node, one control per launch.** |
 | Evidence | `RHEL-08-040321` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
 
@@ -2473,6 +2545,7 @@ Tunables that steer this control, with their role defaults:
 | Group ID | V-254520 |
 | Rule ID | `SV-254520r1069331` |
 | Severity | CAT II |
+| Security category | `privilege-escalation` (NIST family AC) |
 | SRG | SRG-OS-000324-GPOS-00125 |
 | CCI | CCI-002235 |
 | NIST 800-53 | AC-6 (10) |
@@ -2565,6 +2638,7 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-040400.yml`](../ansibl
 | Job tag | `RHEL-08-040400` |
 | Remediation template | `STIG CAT II - Remediate (Gated Control)` |
 | Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Category drift audit | `STIG CAT II - Drift: privilege-escalation` (read-only, daily, `--tags cat_privilege-escalation`) |
 | Approval | **Dedicated approval node, one control per launch.** |
 | Evidence | `RHEL-08-040400` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
 

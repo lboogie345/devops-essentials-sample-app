@@ -103,6 +103,62 @@ That test exists because the first version of this config got it wrong:
 reboot and ISSO sign-off — and it was sitting in the automated template's tag
 list where no approval node would ever see it.
 
+## 3a. Drift monitoring by security category
+
+A single fleet-wide pass/fail tells an ISSO nothing they can act on. "Three open
+findings" does not say whether the estate is holding steady or whether privilege
+escalation quietly degraded this week.
+
+So every control carries a **security category**, and each category gets its own
+read-only drift audit, its own daily schedule and its own notification:
+
+| Category | NIST family | Controls | Ansible tag |
+| --- | --- | ---: | --- |
+| account-management | CM | 1 | `cat_account-management` |
+| audit-and-accountability | AU, CM | 2 | `cat_audit-and-accountability` |
+| authentication | AC, CM, IA | 7 | `cat_authentication` |
+| filesystem-and-permissions | CM | 5 | `cat_filesystem-and-permissions` |
+| network-hardening | CM, SC | 4 | `cat_network-hardening` |
+| privilege-escalation | AC, CM, IA | 4 | `cat_privilege-escalation` |
+| session-management | SC | 2 | `cat_session-management` |
+| software-integrity | CM | 2 | `cat_software-integrity` |
+| system-services-and-devices | CM, IA | 2 | `cat_system-services-and-devices` |
+
+The NIST family is **derived** from each control's own 800-53 mapping, not
+stored separately, so the two cannot disagree.
+
+**The templates are generated, not hand-written.**
+`scripts/stig/gen_aap_categories.py` renders
+`aap/controller/category_audits.yml` from the manifest. Add a control in a new
+category and that category gets its own audit automatically. Hand-maintaining
+nine near-identical templates is precisely how a category stops being monitored:
+someone adds a control, nobody adds the template, and the category reports clean
+forever because nothing ever looks at it. CI runs the generator with `--check`.
+
+Each audit is read-only, runs `audit.yml --tags cat_<category>`, and scopes the
+reporter with `--category <category>` so controls outside the category neither
+count toward the totals nor gate the run. Schedules are staggered 20 minutes
+apart from 05:00 — nine alerts arriving in the same minute get triaged as one.
+
+The report renders a posture table per category:
+
+```
+| Category                   | NIST family | Controls | Score | Open / Not reviewed  | Hosts |
+| ❌ privilege-escalation     | AC, CM, IA  |        4 |   62% | RHEL-08-010385, ...  |     2 |
+| ✅ session-management       | SC          |        2 |  100% | none                 |     0 |
+```
+
+Two deliberate choices in that table, worth understanding before you quote it:
+
+- **Not_Applicable counts toward the score.** A control that does not apply to a
+  host is not a gap in that host's posture. Counting it as one makes every
+  category look permanently broken and trains people to ignore the number.
+- **The score is waiver-blind; the red/green is not.** A documented risk
+  acceptance means nobody has to act, so the category is not red. It does not
+  make the weakness go away, so the percentage does not improve. Otherwise
+  accepting risk would look identical to fixing it — which is exactly the
+  confusion an assessor is trained to look for.
+
 ## 4. Defence in depth on the gated controls
 
 A gated control has to get through four independent things before it changes a

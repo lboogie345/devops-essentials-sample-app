@@ -25,6 +25,7 @@ import argparse
 import csv
 import datetime as dt
 import json
+import re
 import sys
 import xml.etree.ElementTree as ET
 from collections.abc import Iterable, Sequence
@@ -69,6 +70,20 @@ class Control:
     nist: tuple[str, ...] = ()
     remediation: str = "automated"
     risk: str = "unknown"
+    category: str = "uncategorized"
+
+    @property
+    def family(self) -> str:
+        """NIST 800-53 control family, derived from the first control mapping.
+
+        Derived rather than stored so the family and the control mapping cannot
+        drift apart: there is one fact in the manifest, not two.
+        """
+        for ref in self.nist:
+            match = re.match(r"([A-Z]{2})-", ref)
+            if match:
+                return match.group(1)
+        return "ZZ"
 
     @classmethod
     def from_mapping(cls, raw: dict[str, Any]) -> Control:
@@ -86,6 +101,7 @@ class Control:
             nist=tuple(raw.get("nist", ())),
             remediation=raw.get("remediation", "automated"),
             risk=raw.get("risk", "unknown"),
+            category=raw.get("category", "uncategorized"),
         )
 
 
@@ -230,12 +246,110 @@ def reconcile(
     return matrix
 
 
+def restrict(
+    matrix: dict[str, dict[str, Result]], controls: dict[str, Control]
+) -> dict[str, dict[str, Result]]:
+    """Drop results for controls outside the selected set.
+
+    reconcile() deliberately keeps results the manifest does not declare, so
+    role/manifest drift surfaces instead of vanishing. Under an explicit
+    --category filter that behaviour is wrong: the out-of-scope results would be
+    counted in the totals and would gate the run, which defeats the point of
+    scoping a category-specific audit.
+    """
+    return {
+        host: {k: v for k, v in results.items() if k in controls}
+        for host, results in matrix.items()
+    }
+
+
 def tally(matrix: dict[str, dict[str, Result]]) -> dict[str, int]:
     counts = dict.fromkeys(sorted(VALID_STATUSES), 0)
     for results in matrix.values():
         for result in results.values():
             counts[result.status] = counts.get(result.status, 0) + 1
     return counts
+
+
+@dataclass
+class CategoryRollup:
+    """One security category's posture across the whole fleet."""
+
+    category: str
+    families: tuple[str, ...]
+    controls: int
+    counts: dict[str, int]
+    open_controls: tuple[str, ...]
+    hosts_affected: tuple[str, ...]
+
+    @property
+    def compliant(self) -> bool:
+        """Whether this category still requires action.
+
+        Derived from open_controls, which excludes waivers - a documented risk
+        acceptance means nobody needs to act, so the category is not red.
+        """
+        return not self.open_controls
+
+    @property
+    def score(self) -> str:
+        """NotAFinding + Not_Applicable over the total, as a percentage.
+
+        Deliberately waiver-BLIND, unlike `compliant`. A risk acceptance changes
+        whether someone has to act on a weakness; it does not make the weakness
+        go away. An ISSO reading this table needs the real posture number, not
+        one improved by paperwork - otherwise accepting risk looks like fixing it.
+
+        Not_Applicable counts toward the numerator on purpose: a control that
+        does not apply to a host is not a gap in that host's posture, and
+        treating it as one makes every category look permanently broken.
+        """
+        total = sum(self.counts.values())
+        if not total:
+            return "n/a"
+        ok = self.counts.get(STATUS_PASS, 0) + self.counts.get(STATUS_NA, 0)
+        return f"{100 * ok // total}%"
+
+
+def rollup_by_category(
+    matrix: dict[str, dict[str, Result]], controls: dict[str, Control], waived: set[str]
+) -> list[CategoryRollup]:
+    """Aggregate the control matrix per security category.
+
+    This is the difference between a compliance check and drift monitoring.
+    "3 open findings" tells an ISSO nothing they can act on; "privilege
+    escalation went from 0 open to 2 open" names the area that is degrading and
+    the people who own it.
+    """
+    categories: dict[str, list[Control]] = {}
+    for control in controls.values():
+        categories.setdefault(control.category, []).append(control)
+
+    rollups: list[CategoryRollup] = []
+    for category, members in sorted(categories.items()):
+        counts: dict[str, int] = dict.fromkeys(sorted(VALID_STATUSES), 0)
+        open_ids: set[str] = set()
+        hosts: set[str] = set()
+        for host, results in matrix.items():
+            for control in members:
+                result = results.get(control.stig_id)
+                if result is None:
+                    continue
+                counts[result.status] = counts.get(result.status, 0) + 1
+                if result.status in GATING_STATUSES and control.stig_id not in waived:
+                    open_ids.add(control.stig_id)
+                    hosts.add(host)
+        rollups.append(
+            CategoryRollup(
+                category=category,
+                families=tuple(sorted({c.family for c in members})),
+                controls=len(members),
+                counts=counts,
+                open_controls=tuple(sorted(open_ids)),
+                hosts_affected=tuple(sorted(hosts)),
+            )
+        )
+    return rollups
 
 
 def gating_findings(matrix: dict[str, dict[str, Result]], waived: set[str]) -> list[Result]:
@@ -299,6 +413,30 @@ def render_markdown(
     for status in (STATUS_PASS, STATUS_OPEN, STATUS_NA, STATUS_UNKNOWN):
         lines.append(f"| {_BADGE[status]} {status} | {counts.get(status, 0)} |")
 
+    rollups = rollup_by_category(matrix, controls, waived)
+    lines += [
+        "",
+        "## Security category posture",
+        "",
+        "Drift is tracked per category. A category that was clean last run and "
+        "is not clean now names the area that is degrading, which is what a "
+        "weekly review can act on.",
+        "",
+        "| Category | NIST family | Controls | Score | Open / Not reviewed | Hosts affected |",
+        "| --- | --- | ---: | ---: | --- | ---: |",
+    ]
+    for rollup in rollups:
+        badge = "✅" if rollup.compliant else "❌"
+        openish = (
+            ", ".join(f"`{c}`" for c in rollup.open_controls) if rollup.open_controls else "none"
+        )
+        lines.append(
+            f"| {badge} {rollup.category} | {', '.join(rollup.families)} | "
+            f"{rollup.controls} | {rollup.score} | {openish} | "
+            f"{len(rollup.hosts_affected)} |"
+        )
+    lines += [""]
+
     lines += ["", "## Control matrix", ""]
     lines.append("| Control | Title | " + " | ".join(hosts) + " |")
     lines.append("| --- | --- | " + " | ".join("---" for _ in hosts) + " |")
@@ -357,6 +495,7 @@ def render_markdown(
 POAM_COLUMNS = [
     "Control Vulnerability Description",
     "STIG ID",
+    "Security Category",
     "Group ID",
     "Rule ID",
     "Severity",
@@ -394,6 +533,7 @@ def render_poam(
                 {
                     "Control Vulnerability Description": control.title,
                     "STIG ID": stig_id,
+                    "Security Category": control.category,
                     "Group ID": control.group_id,
                     "Rule ID": control.rule_id,
                     "Severity": control.severity,
@@ -445,7 +585,7 @@ def render_junit(
             case = ET.SubElement(
                 suite,
                 "testcase",
-                classname=f"{host}.{control.severity.replace(' ', '')}",
+                classname=f"{host}.{control.severity.replace(' ', '')}.{control.category}",
                 name=f"{stig_id} {control.title}"[:250],
             )
             if stig_id in waived:
@@ -484,6 +624,21 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--poam", type=Path, help="Write the POA&M CSV here.")
     parser.add_argument("--junit", type=Path, help="Write the JUnit XML here.")
     parser.add_argument(
+        "--category",
+        action="append",
+        default=[],
+        metavar="NAME",
+        help="Report and gate on this security category only. Repeatable. "
+        "Use with a category-scoped run (--tags cat_<name>), where the controls "
+        "outside the category were never evaluated and would otherwise gate as "
+        "Not_Reviewed.",
+    )
+    parser.add_argument(
+        "--list-categories",
+        action="store_true",
+        help="Print the categories in the manifest, with their control counts, and exit.",
+    )
+    parser.add_argument(
         "--waive",
         action="append",
         default=[],
@@ -514,6 +669,26 @@ def main(argv: Sequence[str] | None = None) -> int:
         sys.stderr.write(f"error: {exc}\n")
         return 2
 
+    if args.list_categories:
+        counts: dict[str, list[str]] = {}
+        for control in controls.values():
+            counts.setdefault(control.category, []).append(control.stig_id)
+        for category, ids in sorted(counts.items()):
+            families = sorted({controls[i].family for i in ids})
+            print(f"{category:32} {len(ids):2}  {','.join(families):12}  {' '.join(sorted(ids))}")
+        return 0
+
+    if args.category:
+        known = {c.category for c in controls.values()}
+        unknown = set(args.category) - known
+        if unknown:
+            sys.stderr.write(
+                f"error: unknown categor{'y' if len(unknown) == 1 else 'ies'}: "
+                f"{', '.join(sorted(unknown))}. Known: {', '.join(sorted(known))}\n"
+            )
+            return 2
+        controls = {k: v for k, v in controls.items() if v.category in set(args.category)}
+
     waived = set(args.waive)
     unknown_waivers = waived - set(controls)
     if unknown_waivers:
@@ -524,6 +699,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 2
 
     matrix = reconcile(evidence, controls)
+    if args.category:
+        matrix = restrict(matrix, controls)
     markdown = render_markdown(evidence, controls, matrix, waived)
 
     if args.markdown:

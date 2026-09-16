@@ -36,10 +36,13 @@ scripts/stig/
   report.py                          evidence -> Markdown, POA&M CSV, JUnit XML
   parse_disa_export.py               DISA text export -> control manifest
   gen_control_docs.py                DISA text export -> control reference doc
+  gen_aap_categories.py              manifest -> per-category AAP drift audits
+  package_release.py                 reproducible, checksummed transfer archive
 aap/
   execution-environment.yml          pinned EE, built with ansible-builder
   configure.yml                      applies the controller config as code
   controller/                        projects, credentials, templates, RBAC
+  controller/category_audits.yml     generated: one drift audit per category
 .github/workflows/                   validate + AAP project sync
 ```
 

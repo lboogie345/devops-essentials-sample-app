@@ -128,6 +128,51 @@ jobs:
           print("evidence contract holds")
           PY
 
+  package:
+    name: Transfer package
+    runs-on: ubuntu-latest
+    # Builds the archive that crosses to the government GitHub instance, proves
+    # it verifies, and proves two builds of one commit are byte-identical - a
+    # checksum that changes between identical builds proves nothing.
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # package_release reads the commit date
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - run: pip install -r scripts/stig/requirements.txt
+
+      - name: Build and verify
+        run: |
+          set -euo pipefail
+          python scripts/package_release.py --output dist/
+          archive=$(ls dist/*.zip)
+          python scripts/package_release.py --verify "$archive"
+          echo "ARCHIVE=$archive" >> "$GITHUB_ENV"
+
+      - name: Prove the build is reproducible
+        run: |
+          set -euo pipefail
+          python scripts/package_release.py --output dist2/ --name repeat.zip
+          a=$(sha256sum "$ARCHIVE" | cut -d" " -f1)
+          b=$(sha256sum dist2/repeat.zip | cut -d" " -f1)
+          if [ "$a" != "$b" ]; then
+            echo "::error::archive is not reproducible ($a != $b)"
+            exit 1
+          fi
+          echo "Reproducible: $a"
+
+      - name: Upload the transfer package
+        uses: actions/upload-artifact@v4
+        with:
+          name: stig-transfer-package
+          path: |
+            dist/*.zip
+          retention-days: 90
+
   aap-config:
     name: AAP configuration
     runs-on: ubuntu-latest
@@ -176,6 +221,11 @@ jobs:
 
       - name: Verify the generated control reference is current
         run: python scripts/stig/gen_control_docs.py --check
+
+      - name: Verify the per-category AAP drift audits are current
+        # A category with no generated audit is a category nothing ever looks
+        # at, which reports clean forever.
+        run: python scripts/stig/gen_aap_categories.py --check
 
       - name: Explain a drift failure
         if: failure()

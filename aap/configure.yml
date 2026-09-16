@@ -36,6 +36,27 @@
         dir: "{{ playbook_dir }}/controller"
         extensions: [yml]
 
+    - name: Append the generated per-category drift audits
+      # include_vars over a directory overwrites same-named variables rather
+      # than merging them, so the generated file namespaces its keys and they
+      # are concatenated here. Doing this any other way loses one set silently.
+      ansible.builtin.set_fact:
+        controller_templates: >-
+          {{ controller_templates + (stig_category_templates | default([])) }}
+        controller_schedules: >-
+          {{ controller_schedules + (stig_category_schedules | default([])) }}
+        controller_notification_template_associations: >-
+          {{ controller_notification_template_associations
+             + (stig_category_notifications | default([])) }}
+
+    - name: Report what will be configured
+      ansible.builtin.debug:
+        msg: >-
+          {{ controller_templates | length }} job template(s)
+          ({{ stig_category_templates | default([]) | length }} generated per-category
+          drift audits), {{ controller_schedules | length }} schedule(s),
+          {{ controller_workflows | default([]) | length }} workflow(s).
+
   roles:
     # Order matters: objects are created before the things that reference them.
     - infra.controller_configuration.organizations

@@ -6,126 +6,126 @@
 - name: RHEL-08-010019 | Cryptographic verification of vendor packages
   ansible.builtin.include_tasks: RHEL-08-010019.yml
   when: stig_010019_enabled | bool
-  tags: [stig, cat2, RHEL-08-010019, V-256973]
+  tags: [stig, cat2, RHEL-08-010019, V-256973, cat_software-integrity, fam_CM]
 
 - name: RHEL-08-010358 | Email notification of configuration changes
   ansible.builtin.include_tasks: RHEL-08-010358.yml
   when: stig_010358_enabled | bool
-  tags: [stig, cat2, RHEL-08-010358, V-256974]
+  tags: [stig, cat2, RHEL-08-010358, V-256974, cat_audit-and-accountability, fam_CM]
 
 - name: RHEL-08-010379 | Default sudoers include directory
   ansible.builtin.include_tasks: RHEL-08-010379.yml
   when: stig_010379_enabled | bool
-  tags: [stig, cat2, RHEL-08-010379, V-251711, sudo]
+  tags: [stig, cat2, RHEL-08-010379, V-251711, sudo, cat_privilege-escalation, fam_CM]
 
 - name: RHEL-08-010385 | No password bypass for privilege escalation
   ansible.builtin.include_tasks: RHEL-08-010385.yml
   when: stig_010385_enabled | bool
-  tags: [stig, cat2, RHEL-08-010385, V-251712, sudo]
+  tags: [stig, cat2, RHEL-08-010385, V-251712, sudo, cat_privilege-escalation, fam_IA]
 
 - name: RHEL-08-010455 | Elevate SELinux context on sudo
   ansible.builtin.include_tasks: RHEL-08-010455.yml
-  tags: [stig, cat2, RHEL-08-010455, V-272484, sudo, selinux, gated]
+  tags: [stig, cat2, RHEL-08-010455, V-272484, sudo, selinux, gated, cat_privilege-escalation, fam_AC]
 
 - name: RHEL-08-020035 | Terminate idle user sessions
   ansible.builtin.include_tasks: RHEL-08-020035.yml
   when: stig_020035_enabled | bool
-  tags: [stig, cat2, RHEL-08-020035, V-257258]
+  tags: [stig, cat2, RHEL-08-020035, V-257258, cat_session-management, fam_SC]
 
 - name: RHEL-08-020101 | pam_pwquality enabled in system-auth
   ansible.builtin.include_tasks: RHEL-08-020101.yml
   when: stig_020101_enabled | bool
-  tags: [stig, cat2, RHEL-08-020101, V-251713, pam]
+  tags: [stig, cat2, RHEL-08-020101, V-251713, pam, cat_authentication, fam_CM]
 
 - name: RHEL-08-020104 | pwquality retry limit
   ansible.builtin.include_tasks: RHEL-08-020104.yml
   when: stig_020104_enabled | bool
-  tags: [stig, cat2, RHEL-08-020104, V-251716, pam]
+  tags: [stig, cat2, RHEL-08-020104, V-251716, pam, cat_authentication, fam_CM]
 
 - name: RHEL-08-020360 | Idle interactive shell timeout
   ansible.builtin.include_tasks: RHEL-08-020360.yml
   when: stig_020360_enabled | bool
-  tags: [stig, cat2, RHEL-08-020360, V-279929]
+  tags: [stig, cat2, RHEL-08-020360, V-279929, cat_session-management, fam_SC]
 
 - name: RHEL-08-030655 | Audit cron scripts and executables
   ansible.builtin.include_tasks: RHEL-08-030655.yml
   when: stig_030655_enabled | bool
-  tags: [stig, cat2, RHEL-08-030655, V-274877, audit]
+  tags: [stig, cat2, RHEL-08-030655, V-274877, audit, cat_audit-and-accountability, fam_AU]
 
 - name: RHEL-08-040221/040222/040287 | Kernel network parameters
   ansible.builtin.include_tasks: sysctl_network.yml
-  tags: [stig, cat2, RHEL-08-040221, RHEL-08-040222, RHEL-08-040287, sysctl]
+  tags: [stig, cat2, RHEL-08-040221, RHEL-08-040222, RHEL-08-040287, sysctl, cat_network-hardening, fam_SC]
 
 - name: RHEL-08-040321 | Non-graphical default target
   ansible.builtin.include_tasks: RHEL-08-040321.yml
   when: stig_040321_enabled | bool
-  tags: [stig, cat2, RHEL-08-040321, V-251718, gated]
+  tags: [stig, cat2, RHEL-08-040321, V-251718, gated, cat_system-services-and-devices, fam_CM]
 
 - name: RHEL-08-040400 | SELinux confined user mappings
   ansible.builtin.include_tasks: RHEL-08-040400.yml
-  tags: [stig, cat2, RHEL-08-040400, V-254520, selinux, gated]
+  tags: [stig, cat2, RHEL-08-040400, V-254520, selinux, gated, cat_privilege-escalation, fam_AC]
 
 - name: RHEL-08-010090 | PKI certification path to an accepted trust anchor
   ansible.builtin.include_tasks: RHEL-08-010090.yml
-  tags: [stig, cat2, RHEL-08-010090, V-230229, pki]
+  tags: [stig, cat2, RHEL-08-010090, V-230229, pki, cat_authentication, fam_IA]
 
 - name: RHEL-08-010400 | Certificate status checking for MFA
   ansible.builtin.include_tasks: RHEL-08-010400.yml
-  tags: [stig, cat2, RHEL-08-010400, V-230274, pki]
+  tags: [stig, cat2, RHEL-08-010400, V-230274, pki, cat_authentication, fam_IA]
 
 - name: RHEL-08-010490 | SSH private host key permissions
   ansible.builtin.include_tasks: RHEL-08-010490.yml
   when: stig_010490_enabled | bool
-  tags: [stig, cat2, RHEL-08-010490, V-230287, ssh]
+  tags: [stig, cat2, RHEL-08-010490, V-230287, ssh, cat_filesystem-and-permissions, fam_CM]
 
 - name: RHEL-08-010590 | noexec on home directory filesystems
   ansible.builtin.include_tasks: RHEL-08-010590.yml
-  tags: [stig, cat2, RHEL-08-010590, V-230302, filesystem, gated]
+  tags: [stig, cat2, RHEL-08-010590, V-230302, filesystem, gated, cat_filesystem-and-permissions, fam_CM]
 
 - name: RHEL-08-010731 | Home directory file modes
   ansible.builtin.include_tasks: RHEL-08-010731.yml
   when: stig_010731_enabled | bool
-  tags: [stig, cat2, RHEL-08-010731, V-244531, homedirs]
+  tags: [stig, cat2, RHEL-08-010731, V-244531, homedirs, cat_filesystem-and-permissions, fam_CM]
 
 - name: RHEL-08-010741 | Home directory group ownership
   ansible.builtin.include_tasks: RHEL-08-010741.yml
   when: stig_010741_enabled | bool
-  tags: [stig, cat2, RHEL-08-010741, V-244532, homedirs]
+  tags: [stig, cat2, RHEL-08-010741, V-244532, homedirs, cat_filesystem-and-permissions, fam_CM]
 
 - name: RHEL-08-020017 | Account lockout persistence
   ansible.builtin.include_tasks: RHEL-08-020017.yml
   when: stig_020017_enabled | bool
-  tags: [stig, cat2, RHEL-08-020017, V-230339, pam]
+  tags: [stig, cat2, RHEL-08-020017, V-230339, pam, cat_authentication, fam_AC]
 
 - name: RHEL-08-020090 | PKI certificate-to-account mapping
   ansible.builtin.include_tasks: RHEL-08-020090.yml
-  tags: [stig, cat2, RHEL-08-020090, V-230355, pki, gated]
+  tags: [stig, cat2, RHEL-08-020090, V-230355, pki, gated, cat_authentication, fam_IA]
 
 - name: RHEL-08-020250 | Smart card logon for MFA
   ansible.builtin.include_tasks: RHEL-08-020250.yml
-  tags: [stig, cat2, RHEL-08-020250, V-230372, pki, pam, gated]
+  tags: [stig, cat2, RHEL-08-020250, V-230372, pki, pam, gated, cat_authentication, fam_IA]
 
 - name: RHEL-08-020320 | Unnecessary accounts
   ansible.builtin.include_tasks: RHEL-08-020320.yml
-  tags: [stig, cat2, RHEL-08-020320, V-230379, accounts, gated]
+  tags: [stig, cat2, RHEL-08-020320, V-230379, accounts, gated, cat_account-management, fam_CM]
 
 - name: RHEL-08-020352 | umask 077 for interactive users
   ansible.builtin.include_tasks: RHEL-08-020352.yml
   when: stig_020352_enabled | bool
-  tags: [stig, cat2, RHEL-08-020352, V-230384, homedirs]
+  tags: [stig, cat2, RHEL-08-020352, V-230384, homedirs, cat_filesystem-and-permissions, fam_CM]
 
 - name: RHEL-08-040030 | PPSM ports, protocols and services
   ansible.builtin.include_tasks: RHEL-08-040030.yml
   when: stig_040030_enabled | bool
-  tags: [stig, cat2, RHEL-08-040030, V-230500, firewall, manual]
+  tags: [stig, cat2, RHEL-08-040030, V-230500, firewall, manual, cat_network-hardening, fam_CM]
 
 - name: RHEL-08-040137 | fapolicyd application allow listing
   ansible.builtin.include_tasks: RHEL-08-040137.yml
-  tags: [stig, cat2, RHEL-08-040137, V-244546, fapolicyd, gated]
+  tags: [stig, cat2, RHEL-08-040137, V-244546, fapolicyd, gated, cat_software-integrity, fam_CM]
 
 - name: RHEL-08-040140 | Block unauthorized peripherals
   ansible.builtin.include_tasks: RHEL-08-040140.yml
-  tags: [stig, cat2, RHEL-08-040140, V-230524, usbguard, gated]
+  tags: [stig, cat2, RHEL-08-040140, V-230524, usbguard, gated, cat_system-services-and-devices, fam_IA]
 
 - name: Write compliance evidence artifact
   ansible.builtin.include_tasks: evidence.yml

@@ -158,6 +158,32 @@ def control_variables(
     return [(k, defaults[k]) for k in sorted(names)]
 
 
+def nist_family(control: dict[str, Any]) -> str:
+    """NIST 800-53 family, derived from the control mapping rather than stored."""
+    for ref in control.get("nist") or []:
+        match = re.match(r"([A-Z]{2})-", ref)
+        if match:
+            return match.group(1)
+    return "ZZ"
+
+
+def _category_rows(
+    controls: list[dict[str, Any]], manifest: dict[str, dict[str, Any]]
+) -> list[str]:
+    grouped: dict[str, dict[str, Any]] = {}
+    for control in controls:
+        entry = manifest.get(control["stig_id"], {})
+        category = entry.get("category", "uncategorized")
+        bucket = grouped.setdefault(category, {"n": 0, "families": set()})
+        bucket["n"] += 1
+        bucket["families"].add(nist_family(control))
+    return [
+        f"| {category} | {', '.join(sorted(meta['families']))} | {meta['n']} | "
+        f"`cat_{category}` | `STIG CAT II - Drift: {category}` |"
+        for category, meta in sorted(grouped.items())
+    ]
+
+
 def codeowners_for(path: Path) -> str:
     # Normalised first: matching on the raw path makes the output depend on
     # whether the caller passed a relative or absolute tasks directory, which
@@ -223,10 +249,21 @@ def render(
         "",
         f"Implemented by the role: **{implemented} of {len(controls)}**.",
         "",
+        "## Security categories",
+        "",
+        "Drift is monitored per category, not as one fleet-wide pass/fail. Each "
+        "has its own read-only AAP drift audit, its own daily schedule and its "
+        "own notification, all generated from this manifest by "
+        "`scripts/stig/gen_aap_categories.py`.",
+        "",
+        "| Category | NIST family | Controls | Ansible tag | AAP drift audit |",
+        "| --- | --- | ---: | --- | --- |",
+        *_category_rows(controls, manifest),
+        "",
         "## Index",
         "",
-        "| # | STIG ID | Group ID | Severity | Approach | Enforced by |",
-        "| ---: | --- | --- | --- | --- | --- |",
+        "| # | STIG ID | Security category | Group ID | Severity | Approach | Enforced by |",
+        "| ---: | --- | --- | --- | --- | --- | --- |",
     ]
 
     for number, control in enumerate(controls, start=1):
@@ -236,7 +273,8 @@ def render(
         enforced = f"`{task.name}`" if task else "**not implemented**"
         anchor = stig_id.lower()
         lines.append(
-            f"| {number} | [`{stig_id}`](#{anchor}) | {control.get('group_id', '')} | "
+            f"| {number} | [`{stig_id}`](#{anchor}) | "
+            f"{entry.get('category', 'uncategorized')} | {control.get('group_id', '')} | "
             f"{control.get('severity', '')} | {entry.get('remediation', 'unreviewed')} | {enforced} |"
         )
 
@@ -267,6 +305,8 @@ def render(
             f"| Group ID | {control.get('group_id', '')} |",
             f"| Rule ID | `{control.get('rule_id', '')}` |",
             f"| Severity | {control.get('severity', '')} |",
+            f"| Security category | `{entry.get('category', 'uncategorized')}` "
+            f"(NIST family {nist_family(control)}) |",
             f"| SRG | {control.get('srg', '')} |",
             f"| CCI | {', '.join(control.get('cci', [])) or 'n/a'} |",
             f"| NIST 800-53 | {', '.join(control.get('nist', [])) or 'n/a'} |",
@@ -341,6 +381,8 @@ def render(
             f"| Job tag | `{stig_id}` |",
             f"| Remediation template | {f'`{template}`' if template else '**none** - no automatable fix'} |",
             "| Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |",
+            f"| Category drift audit | `STIG CAT II - Drift: {entry.get('category', 'uncategorized')}` "
+            f"(read-only, daily, `--tags cat_{entry.get('category', 'uncategorized')}`) |",
             f"| Approval | {AAP_APPROVAL.get(remediation, 'Unclassified.')} |",
             f"| Evidence | `{stig_id}` entry in the per-host evidence document, "
             "collected by `STIG CAT II - Evidence Report` |",

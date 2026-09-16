@@ -1,0 +1,263 @@
+---
+# GENERATED FILE - DO NOT EDIT BY HAND.
+# Regenerate with: python scripts/stig/gen_aap_categories.py --write
+# Source: ansible/controls/rhel8_cat2_controls.yml (the `category` field)
+#
+# One read-only drift audit per security category, each separately
+# schedulable and separately notifiable. This is what makes drift
+# monitoring per category rather than one fleet-wide pass/fail: a
+# category that was clean yesterday and is red today names the area that
+# is degrading and the team that owns it.
+#
+# Every template here is read-only. None of them can modify a host.
+#
+# The keys are namespaced (stig_category_*) rather than controller_*:
+# aap/configure.yml loads this directory with include_vars, which would
+# silently overwrite the hand-written controller_templates rather than
+# add to them. configure.yml concatenates them explicitly.
+# Schedules are staggered 20 minutes apart from 05:00 America/New_York
+# so that nine simultaneous alerts do not get triaged as one.
+stig_category_templates:
+  - name: 'STIG CAT II - Drift: account-management'
+    job_type: run
+    organization: Platform Security
+    project: RHEL 8 STIG CAT II
+    playbook: ansible/audit.yml
+    inventory: RHEL 8 Fleet
+    execution_environment: stig-rhel8-cat2-ee
+    credentials:
+      - RHEL 8 Fleet - Machine
+      - RHEL 8 Fleet - Vault
+    ask_limit_on_launch: true
+    become_enabled: true
+    job_tags: cat_account-management
+    extra_vars:
+      stig_target: rhel8
+      stig_category: account-management
+    description: Read-only drift audit scoped to account-management. 1 control(s), NIST family
+      CM. 1 gated control(s) report Open until the organization supplies their data - expect
+      this category to stay red until they are enabled or formally risk-accepted.
+  - name: 'STIG CAT II - Drift: audit-and-accountability'
+    job_type: run
+    organization: Platform Security
+    project: RHEL 8 STIG CAT II
+    playbook: ansible/audit.yml
+    inventory: RHEL 8 Fleet
+    execution_environment: stig-rhel8-cat2-ee
+    credentials:
+      - RHEL 8 Fleet - Machine
+      - RHEL 8 Fleet - Vault
+    ask_limit_on_launch: true
+    become_enabled: true
+    job_tags: cat_audit-and-accountability
+    extra_vars:
+      stig_target: rhel8
+      stig_category: audit-and-accountability
+    description: Read-only drift audit scoped to audit-and-accountability. 2 control(s), NIST
+      family AU, CM.
+  - name: 'STIG CAT II - Drift: authentication'
+    job_type: run
+    organization: Platform Security
+    project: RHEL 8 STIG CAT II
+    playbook: ansible/audit.yml
+    inventory: RHEL 8 Fleet
+    execution_environment: stig-rhel8-cat2-ee
+    credentials:
+      - RHEL 8 Fleet - Machine
+      - RHEL 8 Fleet - Vault
+    ask_limit_on_launch: true
+    become_enabled: true
+    job_tags: cat_authentication
+    extra_vars:
+      stig_target: rhel8
+      stig_category: authentication
+    description: Read-only drift audit scoped to authentication. 7 control(s), NIST family
+      AC, CM, IA. 2 gated control(s) report Open until the organization supplies their data
+      - expect this category to stay red until they are enabled or formally risk-accepted.
+  - name: 'STIG CAT II - Drift: filesystem-and-permissions'
+    job_type: run
+    organization: Platform Security
+    project: RHEL 8 STIG CAT II
+    playbook: ansible/audit.yml
+    inventory: RHEL 8 Fleet
+    execution_environment: stig-rhel8-cat2-ee
+    credentials:
+      - RHEL 8 Fleet - Machine
+      - RHEL 8 Fleet - Vault
+    ask_limit_on_launch: true
+    become_enabled: true
+    job_tags: cat_filesystem-and-permissions
+    extra_vars:
+      stig_target: rhel8
+      stig_category: filesystem-and-permissions
+    description: Read-only drift audit scoped to filesystem-and-permissions. 5 control(s),
+      NIST family CM. 1 gated control(s) report Open until the organization supplies their
+      data - expect this category to stay red until they are enabled or formally risk-accepted.
+  - name: 'STIG CAT II - Drift: network-hardening'
+    job_type: run
+    organization: Platform Security
+    project: RHEL 8 STIG CAT II
+    playbook: ansible/audit.yml
+    inventory: RHEL 8 Fleet
+    execution_environment: stig-rhel8-cat2-ee
+    credentials:
+      - RHEL 8 Fleet - Machine
+      - RHEL 8 Fleet - Vault
+    ask_limit_on_launch: true
+    become_enabled: true
+    job_tags: cat_network-hardening
+    extra_vars:
+      stig_target: rhel8
+      stig_category: network-hardening
+    description: Read-only drift audit scoped to network-hardening. 4 control(s), NIST family
+      CM, SC. 1 manual control(s) have no automatable fix and always report Open; closure
+      is a documented human comparison.
+  - name: 'STIG CAT II - Drift: privilege-escalation'
+    job_type: run
+    organization: Platform Security
+    project: RHEL 8 STIG CAT II
+    playbook: ansible/audit.yml
+    inventory: RHEL 8 Fleet
+    execution_environment: stig-rhel8-cat2-ee
+    credentials:
+      - RHEL 8 Fleet - Machine
+      - RHEL 8 Fleet - Vault
+    ask_limit_on_launch: true
+    become_enabled: true
+    job_tags: cat_privilege-escalation
+    extra_vars:
+      stig_target: rhel8
+      stig_category: privilege-escalation
+    description: Read-only drift audit scoped to privilege-escalation. 4 control(s), NIST
+      family AC, CM, IA. 2 gated control(s) report Open until the organization supplies their
+      data - expect this category to stay red until they are enabled or formally risk-accepted.
+  - name: 'STIG CAT II - Drift: session-management'
+    job_type: run
+    organization: Platform Security
+    project: RHEL 8 STIG CAT II
+    playbook: ansible/audit.yml
+    inventory: RHEL 8 Fleet
+    execution_environment: stig-rhel8-cat2-ee
+    credentials:
+      - RHEL 8 Fleet - Machine
+      - RHEL 8 Fleet - Vault
+    ask_limit_on_launch: true
+    become_enabled: true
+    job_tags: cat_session-management
+    extra_vars:
+      stig_target: rhel8
+      stig_category: session-management
+    description: Read-only drift audit scoped to session-management. 2 control(s), NIST family
+      SC.
+  - name: 'STIG CAT II - Drift: software-integrity'
+    job_type: run
+    organization: Platform Security
+    project: RHEL 8 STIG CAT II
+    playbook: ansible/audit.yml
+    inventory: RHEL 8 Fleet
+    execution_environment: stig-rhel8-cat2-ee
+    credentials:
+      - RHEL 8 Fleet - Machine
+      - RHEL 8 Fleet - Vault
+    ask_limit_on_launch: true
+    become_enabled: true
+    job_tags: cat_software-integrity
+    extra_vars:
+      stig_target: rhel8
+      stig_category: software-integrity
+    description: Read-only drift audit scoped to software-integrity. 2 control(s), NIST family
+      CM. 1 gated control(s) report Open until the organization supplies their data - expect
+      this category to stay red until they are enabled or formally risk-accepted.
+  - name: 'STIG CAT II - Drift: system-services-and-devices'
+    job_type: run
+    organization: Platform Security
+    project: RHEL 8 STIG CAT II
+    playbook: ansible/audit.yml
+    inventory: RHEL 8 Fleet
+    execution_environment: stig-rhel8-cat2-ee
+    credentials:
+      - RHEL 8 Fleet - Machine
+      - RHEL 8 Fleet - Vault
+    ask_limit_on_launch: true
+    become_enabled: true
+    job_tags: cat_system-services-and-devices
+    extra_vars:
+      stig_target: rhel8
+      stig_category: system-services-and-devices
+    description: Read-only drift audit scoped to system-services-and-devices. 2 control(s),
+      NIST family CM, IA. 2 gated control(s) report Open until the organization supplies their
+      data - expect this category to stay red until they are enabled or formally risk-accepted.
+stig_category_schedules:
+  - name: 'STIG CAT II - Daily drift: account-management'
+    unified_job_template: 'STIG CAT II - Drift: account-management'
+    rrule: DTSTART;TZID=America/New_York:20260101T050000 RRULE:FREQ=DAILY;INTERVAL=1
+    description: Daily read-only drift check for account-management.
+    enabled: true
+  - name: 'STIG CAT II - Daily drift: audit-and-accountability'
+    unified_job_template: 'STIG CAT II - Drift: audit-and-accountability'
+    rrule: DTSTART;TZID=America/New_York:20260101T052000 RRULE:FREQ=DAILY;INTERVAL=1
+    description: Daily read-only drift check for audit-and-accountability.
+    enabled: true
+  - name: 'STIG CAT II - Daily drift: authentication'
+    unified_job_template: 'STIG CAT II - Drift: authentication'
+    rrule: DTSTART;TZID=America/New_York:20260101T054000 RRULE:FREQ=DAILY;INTERVAL=1
+    description: Daily read-only drift check for authentication.
+    enabled: true
+  - name: 'STIG CAT II - Daily drift: filesystem-and-permissions'
+    unified_job_template: 'STIG CAT II - Drift: filesystem-and-permissions'
+    rrule: DTSTART;TZID=America/New_York:20260101T060000 RRULE:FREQ=DAILY;INTERVAL=1
+    description: Daily read-only drift check for filesystem-and-permissions.
+    enabled: true
+  - name: 'STIG CAT II - Daily drift: network-hardening'
+    unified_job_template: 'STIG CAT II - Drift: network-hardening'
+    rrule: DTSTART;TZID=America/New_York:20260101T062000 RRULE:FREQ=DAILY;INTERVAL=1
+    description: Daily read-only drift check for network-hardening.
+    enabled: true
+  - name: 'STIG CAT II - Daily drift: privilege-escalation'
+    unified_job_template: 'STIG CAT II - Drift: privilege-escalation'
+    rrule: DTSTART;TZID=America/New_York:20260101T064000 RRULE:FREQ=DAILY;INTERVAL=1
+    description: Daily read-only drift check for privilege-escalation.
+    enabled: true
+  - name: 'STIG CAT II - Daily drift: session-management'
+    unified_job_template: 'STIG CAT II - Drift: session-management'
+    rrule: DTSTART;TZID=America/New_York:20260101T070000 RRULE:FREQ=DAILY;INTERVAL=1
+    description: Daily read-only drift check for session-management.
+    enabled: true
+  - name: 'STIG CAT II - Daily drift: software-integrity'
+    unified_job_template: 'STIG CAT II - Drift: software-integrity'
+    rrule: DTSTART;TZID=America/New_York:20260101T072000 RRULE:FREQ=DAILY;INTERVAL=1
+    description: Daily read-only drift check for software-integrity.
+    enabled: true
+  - name: 'STIG CAT II - Daily drift: system-services-and-devices'
+    unified_job_template: 'STIG CAT II - Drift: system-services-and-devices'
+    rrule: DTSTART;TZID=America/New_York:20260101T074000 RRULE:FREQ=DAILY;INTERVAL=1
+    description: Daily read-only drift check for system-services-and-devices.
+    enabled: true
+stig_category_notifications:
+  - name: 'STIG CAT II - Drift: account-management'
+    notification_on_failure:
+      - STIG - Drift webhook
+  - name: 'STIG CAT II - Drift: audit-and-accountability'
+    notification_on_failure:
+      - STIG - Drift webhook
+  - name: 'STIG CAT II - Drift: authentication'
+    notification_on_failure:
+      - STIG - Drift webhook
+  - name: 'STIG CAT II - Drift: filesystem-and-permissions'
+    notification_on_failure:
+      - STIG - Drift webhook
+  - name: 'STIG CAT II - Drift: network-hardening'
+    notification_on_failure:
+      - STIG - Drift webhook
+  - name: 'STIG CAT II - Drift: privilege-escalation'
+    notification_on_failure:
+      - STIG - Drift webhook
+  - name: 'STIG CAT II - Drift: session-management'
+    notification_on_failure:
+      - STIG - Drift webhook
+  - name: 'STIG CAT II - Drift: software-integrity'
+    notification_on_failure:
+      - STIG - Drift webhook
+  - name: 'STIG CAT II - Drift: system-services-and-devices'
+    notification_on_failure:
+      - STIG - Drift webhook
