@@ -145,15 +145,22 @@ jobs:
             --merge ansible/controls/rhel8_cat2_controls.yml \
             --diff | tee "${{ runner.temp }}/drift.txt"
 
+      - name: Verify the generated control reference is current
+        run: python scripts/stig/gen_control_docs.py --check
+
       - name: Explain a drift failure
         if: failure()
         run: |
           {
             echo "## Benchmark drift detected"
             echo
-            echo "The control manifest no longer matches the committed DISA export."
-            echo "Each ADDED control needs a task file in \`ansible/roles/rhel8_stig_cat2/tasks/\`"
-            echo "and a curated risk assessment before this gate clears."
+            echo "The control manifest or the generated reference no longer"
+            echo "matches the committed DISA export. Each ADDED control needs a"
+            echo "task file in \`ansible/roles/rhel8_stig_cat2/tasks/\` and a"
+            echo "curated risk assessment before this gate clears."
+            echo
+            echo "Regenerate the reference with:"
+            echo "    python scripts/stig/gen_control_docs.py --write"
             echo
             echo '```'
             cat "${{ runner.temp }}/drift.txt" || true

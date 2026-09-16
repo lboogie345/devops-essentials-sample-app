@@ -33,9 +33,22 @@ a one-time remediation into a control.
 
 ## 2. The findings, and what each one actually requires
 
-The table gives the enforcement and the trap. "Gated" means the role can fix it
-but will not without organization-specific input, because a wrong value causes an
-outage or an access loss.
+**Full per-control reference: [`CONTROL-REFERENCE.md`](CONTROL-REFERENCE.md)** — one check and one remediation for every control, quoted verbatim from the
+DISA export, with the CCI/NIST mapping and the task file that enforces it.
+
+That document is **generated**, not written. `scripts/stig/gen_control_docs.py`
+reads the export in `ansible/controls/disa-exports/` and renders one section per
+control, so the header count ("N controls, N checks, N remediations") is computed
+from the benchmark rather than asserted by a human. Drop in an export with a
+different number of controls, regenerate, and the totals follow. A control present
+in the export with no task file in the role is reported as a **coverage gap**
+rather than quietly omitted — that omission is exactly how a document
+comes to claim coverage it does not have. CI runs the generator with `--check`, so
+a stale reference fails the build.
+
+The table below is the engineering summary: the enforcement, and the trap.
+"Gated" means the role can fix it but will not without organization-specific
+input, because a wrong value causes an outage or an access loss.
 
 | STIG ID | Requirement | How it is enforced | The part that bites |
 | --- | --- | --- | --- |

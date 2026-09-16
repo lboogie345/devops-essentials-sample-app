@@ -46,7 +46,6 @@ LABELS = {
 BLOCK_LABELS = ("Discussion:", "Check Text:", "Fix Text:")
 CCI_RE = re.compile(r"^(CCI-\d{6})\s*$")
 NIST_RE = re.compile(r"^NIST SP 800-53(?: Revision \d)?\s*::\s*(.+?)\s*$")
-RECORD_SEP_RE = re.compile(r"^_{5,}\s*$")
 
 # Fields that carry engineering judgement, preserved across a re-parse.
 CURATED_FIELDS = ("remediation", "risk", "reboot_required", "applicability", "notes")
@@ -58,24 +57,35 @@ DEFAULTS = {
 }
 
 
-def parse_export(text: str) -> list[dict[str, Any]]:
-    """Split the export into one dict per control, deduplicated by STIG ID."""
-    controls: list[dict[str, Any]] = []
+RECORD_SPLIT_RE = re.compile(r"^_{5,}\s*$", re.M)
+
+
+def _split_records(text: str) -> list[str]:
+    """Split the export into one chunk per control record."""
+    return [chunk for chunk in RECORD_SPLIT_RE.split(text) if "STIG ID:" in chunk]
+
+
+def _block(record: str, start: str, ends: Sequence[str]) -> str:
+    """Return the free-text block introduced by `start`, up to the first `end`."""
+    match = re.search(rf"^{re.escape(start)}\s*$", record, re.M)
+    if not match:
+        return ""
+    tail = record[match.end() :]
+    stop = len(tail)
+    for end in ends:
+        found = re.search(end, tail, re.M)
+        if found:
+            stop = min(stop, found.start())
+    return tail[:stop].strip("\n")
+
+
+def _parse_record_fields(record: str) -> dict[str, Any]:
+    """Pull the label/value pairs and CCI/NIST references out of one record."""
     current: dict[str, Any] = {}
     pending_label: str | None = None
-    lines = text.splitlines()
 
-    def flush() -> None:
-        if current.get("stig_id"):
-            controls.append(dict(current))
-        current.clear()
-
-    for raw_line in lines:
+    for raw_line in record.splitlines():
         line = raw_line.rstrip()
-        if RECORD_SEP_RE.match(line):
-            flush()
-            pending_label = None
-            continue
 
         if line in BLOCK_LABELS:
             pending_label = None
@@ -102,9 +112,26 @@ def parse_export(text: str) -> list[dict[str, Any]]:
             nist = current.setdefault("nist", [])
             if control_id not in nist:
                 nist.append(control_id)
-            continue
 
-    flush()
+    return current
+
+
+def parse_export(text: str) -> list[dict[str, Any]]:
+    """Split the export into one dict per control, deduplicated by STIG ID.
+
+    Each entry also carries the verbatim `discussion`, `check_text` and
+    `fix_text` blocks, so the control reference documentation can be generated
+    from the benchmark instead of transcribed by hand.
+    """
+    controls: list[dict[str, Any]] = []
+    for record in _split_records(text):
+        current = _parse_record_fields(record)
+        if not current.get("stig_id"):
+            continue
+        current["discussion"] = _block(record, "Discussion:", [r"^Check Text:\s*$"])
+        current["check_text"] = _block(record, "Check Text:", [r"^Fix Text:\s*$"])
+        current["fix_text"] = _block(record, "Fix Text:", [r"^CCI-\d{6}\s*$"])
+        controls.append(current)
 
     # The exports repeat controls that satisfy several SRGs. Keep the first
     # occurrence and merge any CCI/NIST references the later copies added.
@@ -117,6 +144,10 @@ def parse_export(text: str) -> list[dict[str, Any]]:
                 merged = list(dict.fromkeys(existing.get(key, []) + control.get(key, [])))
                 if merged:
                     existing[key] = merged
+            # A later copy may carry a block the first one omitted.
+            for key in ("discussion", "check_text", "fix_text"):
+                if not existing.get(key) and control.get(key):
+                    existing[key] = control[key]
         else:
             deduped[stig_id] = control
     return [deduped[k] for k in sorted(deduped)]

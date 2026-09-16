@@ -9,6 +9,12 @@ Enterprise Linux 8 (V2R8, CAT II): an Ansible role, a compliance reporter, and
 the GitHub workflows that gate and evidence its use.
 
 **Start here:** [`docs/STIG-CAT-II-Remediation.md`](docs/STIG-CAT-II-Remediation.md)
+— the approach, the traps, and the rollout sequence.
+
+**Per-control detail:** [`docs/CONTROL-REFERENCE.md`](docs/CONTROL-REFERENCE.md)
+— generated from the DISA export; one check and one remediation per control,
+with the task file that enforces each. Regenerate with
+`python scripts/stig/gen_control_docs.py --write`.
 
 ```
 ansible/
@@ -21,6 +27,7 @@ ansible/
 scripts/stig/
   report.py                          evidence -> Markdown, POA&M CSV, JUnit XML
   parse_disa_export.py               DISA text export -> control manifest
+  gen_control_docs.py                DISA text export -> control reference doc
 .github/workflows/                   validate, remediate (gated), drift detection
 ```
 
@@ -42,7 +49,8 @@ ansible-playbook audit.yml --limit rhel8_staging
 ```bash
 yamllint -c .yamllint ansible/    # YAML style
 ansible-lint                      # production profile
-python -m pytest                  # reporter and parser unit tests
+python -m pytest                  # reporter, parser and generator unit tests
+python scripts/stig/gen_control_docs.py --check   # reference doc is current
 ruff check scripts/               # Python lint
 ```
 
