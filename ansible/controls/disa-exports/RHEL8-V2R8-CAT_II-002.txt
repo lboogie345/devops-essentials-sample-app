@@ -1,0 +1,777 @@
+Red Hat Enterprise Linux 8
+Version: 2 Release: 8 Benchmark Date: 01 Jul 2026
+Group ID:
+V-244546
+Rule ID:
+SV-244546r1208752
+STIG ID:
+RHEL-08-040137
+SRG ID:
+SRG-OS-000368-GPOS-00154
+Severity:
+CAT II
+Classification
+UNCLASSIFIED
+Rule Title:
+The RHEL 8 fapolicy module must be configured to employ a deny-all, permit-by-exception policy to allow the execution of authorized software programs.
+Discussion:
+The organization must identify authorized software programs and permit execution of authorized software. The process used to identify software programs that are authorized to execute on organizational information systems is commonly referred to as allow listing.
+
+Utilizing an allow list provides a configuration management method for allowing the execution of only authorized software. Using only authorized software decreases risk by limiting the number of potential vulnerabilities. Verification of allow listed software occurs prior to execution or at system startup.
+
+User home directories/folders may contain information of a sensitive nature. Nonprivileged users should coordinate any sharing of information with an SA through shared resources.
+
+RHEL 8 ships with many optional packages. One such package is a file access policy daemon called "fapolicyd". "fapolicyd" is a userspace daemon that determines access rights to files based on attributes of the process and file. It can be used to either deny list or allow list processes or file access.
+
+Proceed with caution with enforcing the use of this daemon. Improper configuration may render the system nonfunctional. The "fapolicyd" API is not namespace aware and can cause issues when launching or running containers.
+
+Satisfies: SRG-OS-000368-GPOS-00154, SRG-OS-000370-GPOS-00155, SRG-OS-000480-GPOS-00232
+Check Text:
+Verify the RHEL 8 "fapolicyd" employs a deny-all, permit-by-exception policy.
+
+Check that "fapolicyd" is in enforcement mode with the following command:
+
+$ sudo grep permissive /etc/fapolicyd/fapolicyd.conf
+permissive = 0
+
+If "fapolicyd" is not running in enforcement mode, this is a finding.
+
+Check that "fapolicyd" employs a deny-all policy on system mounts with the following commands:
+
+$ sudo tail /etc/fapolicyd/compiled.rules
+allow exe=/usr/bin/python3.7 : ftype=text/x-python
+deny_audit perm=any pattern=ld_so : all
+deny perm=any all : all
+
+If "fapolicyd" is not running with a deny-all, permit-by-exception policy, this is a finding.
+
+Note: "deny_log" or "deny_audit" options meet the security requirements. These options will generate higher volumes of logs.
+Fix Text:
+Configure RHEL 8 to employ a deny-all, permit-by-exception application allow listing policy with "fapolicyd".
+
+With the "fapolicyd" installed and enabled, configure the daemon to function in permissive mode until the allow list is built correctly to avoid system lockout. Do this by editing the "/etc/fapolicyd/fapolicyd.conf" file with the following line:
+
+permissive = 1
+
+Build the allow list in a file within the "/etc/fapolicyd/rules.d" directory, ensuring the last rule implements a deny-all policy, such as "deny perm=any all : all".
+
+Once it is determined the allow list is built correctly, set the "fapolicyd" to enforcing mode by editing the "permissive" line in the /etc/fapolicyd/fapolicyd.conf file.
+
+permissive = 0
+CCI-001764
+Prevent program execution in accordance with organization-defined policies, rules of behavior, and/or access agreements regarding software program usage and restrictions; rules authorizing the terms and conditions of software program usage.
+NIST SP 800-53 Revision 4 :: CM-7 (2)
+NIST SP 800-53 Revision 5 :: CM-7 (2)
+_________________________________________
+
+Red Hat Enterprise Linux 8
+Version: 2 Release: 8 Benchmark Date: 01 Jul 2026
+Group ID:
+V-244532
+Rule ID:
+SV-244532r1101906
+STIG ID:
+RHEL-08-010741
+SRG ID:
+SRG-OS-000480-GPOS-00227
+Severity:
+CAT II
+Classification
+UNCLASSIFIED
+Rule Title:
+RHEL 8 must be configured so that all files and directories contained in local interactive user home directories are group-owned by a group of which the home directory owner is a member.
+Discussion:
+If a local interactive user's files are group-owned by a group of which the user is not a member, unintended users may be able to access them.
+Check Text:
+Verify all files and directories in a local interactive user home directory are group-owned by a group that the user is a member.
+
+Check the group owner of all files and directories in a local interactive user's home directory with the following command:
+
+Note: The example will be for the user "smithj", who has a home directory of "/home/smithj".
+
+$ sudo ls -lLR /<home directory>/<users home directory>/
+-rw-r--r-- 1 smithj smithj  18 Mar  5 17:06 file1
+-rw-r--r-- 1 smithj smithj 193 Mar  5 17:06 file2
+-rw-r--r-- 1 smithj sa        231 Mar  5 17:06 file3
+
+If any files are found with a group owner different from the home directory user private group, check to see if the user is a member of that group with the following command:
+
+$ sudo grep smithj /etc/group
+sa:x:100:juan,shelley,bob,smithj 
+smithj:x:521:smithj
+
+If any files or directories are group owned by a group that the directory owner is not a member of verify that it is documented with the information system security officer (ISSO). If it is not, this is a finding.
+Fix Text:
+Change the group of a local interactive user's files and directories to a group that the interactive user is a member. To change the group owner of a local interactive user's files and directories, use the following command:
+
+Note: The example will be for the user smithj, who has a home directory of "/home/smithj" and is a member of the users group.
+
+$ sudo chgrp smithj /home/smithj/<file or directory>
+CCI-000366
+Implement the security configuration settings.
+NIST SP 800-53 :: CM-6 b
+NIST SP 800-53A :: CM-6.1 (iv)
+NIST SP 800-53 Revision 4 :: CM-6 b
+NIST SP 800-53 Revision 5 :: CM-6 b
+
+_______________________________________________________
+
+Red Hat Enterprise Linux 8
+Version: 2 Release: 8 Benchmark Date: 01 Jul 2026
+Group ID:
+V-244531
+Rule ID:
+SV-244531r1017338
+STIG ID:
+RHEL-08-010731
+SRG ID:
+SRG-OS-000480-GPOS-00227
+Severity:
+CAT II
+Classification
+UNCLASSIFIED
+Rule Title:
+All RHEL 8 local interactive user home directory files must have mode 0750 or less permissive.
+Discussion:
+Excessive permissions on local interactive user home directories may allow unauthorized access to user files by other users.
+Check Text:
+Verify all files and directories contained in a local interactive user home directory, excluding local initialization files, have a mode of "0750".
+Files that begin with a "." are excluded from this requirement.
+
+Note: The example will be for the user "smithj", who has a home directory of "/home/smithj".
+
+$ sudo ls -lLR /home/smithj
+-rwxr-x--- 1 smithj smithj 18 Mar 5 17:06 file1
+-rwxr----- 1 smithj smithj 193 Mar 5 17:06 file2
+-rw-r-x--- 1 smithj smithj 231 Mar 5 17:06 file3
+
+If any files or directories are found with a mode more permissive than "0750", this is a finding.
+Fix Text:
+Set the mode on files and directories in the local interactive user home directory with the following command:
+
+Note: The example will be for the user smithj, who has a home directory of "/home/smithj" and is a member of the users group.
+
+$ sudo chmod 0750 /home/smithj/<file or directory>
+CCI-000366
+Implement the security configuration settings.
+NIST SP 800-53 :: CM-6 b
+NIST SP 800-53A :: CM-6.1 (iv)
+NIST SP 800-53 Revision 4 :: CM-6 b
+NIST SP 800-53 Revision 5 :: CM-6 b
+
+______________________________________________________________
+
+Red Hat Enterprise Linux 8
+Version: 2 Release: 8 Benchmark Date: 01 Jul 2026
+Group ID:
+V-230524
+Rule ID:
+SV-230524r1155418
+STIG ID:
+RHEL-08-040140
+SRG ID:
+SRG-OS-000378-GPOS-00163
+Severity:
+CAT II
+Classification
+UNCLASSIFIED
+Rule Title:
+RHEL 8 must block unauthorized peripherals before establishing a connection.
+Discussion:
+Without authenticating devices, unidentified or unknown devices may be introduced, thereby facilitating malicious activity.
+
+Peripherals include, but are not limited to, such devices as flash drives, external storage, and printers.
+
+A new feature that RHEL 8 provides is the USBGuard software framework. The USBguard-daemon is the main component of the USBGuard software framework. It runs as a service in the background and enforces the USB device authorization policy for all USB devices. The policy is defined by a set of rules using a rule language described in the usbguard-rules.conf file. The policy and the authorization state of USB devices can be modified during runtime using the usbguard tool.
+
+The system administrator (SA) must work with the site information system security officer (ISSO) to determine a list of authorized peripherals and establish rules within the USBGuard software framework to allow only authorized devices.
+Check Text:
+Verify the USBGuard has a policy configured with the following command:
+
+$ sudo usbguard list-rules
+
+If the command does not return results or an error is returned, ask the SA to indicate how unauthorized peripherals are being blocked.
+If there is no evidence that unauthorized peripherals are being blocked before establishing a connection, this is a finding.
+
+If the USBGuard package is not installed, ask the SA to indicate how unauthorized peripherals are being blocked.
+If there is no evidence that unauthorized peripherals are being blocked before establishing a connection, this is a finding.
+
+If the system is a virtual machine with no virtual or physical USB peripherals attached, this is not a finding.
+Fix Text:
+Configure the operating system to enable the blocking of unauthorized peripherals with the following command:
+This command must be run from a root shell and will create an allow list for any usb devices currently connect to the system.
+
+# usbguard generate-policy > /etc/usbguard/rules.conf
+
+Note: Enabling and starting usbguard without properly configuring it for an individual system will immediately prevent any access over a usb device such as a keyboard or mouse.
+
+Restart usbguard service after creation or update of rules with the following command:
+
+$ sudo systemctl restart usbguard
+CCI-001958
+Authenticate organization-defined devices and/or types of devices before establishing a local, remote, and/or network connection.
+NIST SP 800-53 Revision 4 :: IA-3
+NIST SP 800-53 Revision 5 :: IA-3
+
+______________________________________________________________
+
+
+Red Hat Enterprise Linux 8
+Version: 2 Release: 8 Benchmark Date: 01 Jul 2026
+Group ID:
+V-230500
+Rule ID:
+SV-230500r1101900
+STIG ID:
+RHEL-08-040030
+SRG ID:
+SRG-OS-000096-GPOS-00050
+Severity:
+CAT II
+Classification
+UNCLASSIFIED
+Rule Title:
+RHEL 8 must be configured to prohibit or restrict the use of functions, ports, protocols, and/or services, as defined in the Ports, Protocols, and Services Management (PPSM) Category Assignments List (CAL) and vulnerability assessments.
+Discussion:
+To prevent unauthorized connection of devices, unauthorized transfer of information, or unauthorized tunneling (i.e., embedding of data types within data types), organizations must disable or restrict unused or unnecessary physical and logical ports/protocols on information systems.
+
+Operating systems are capable of providing a wide variety of functions and services. Some of the functions and services provided by default may not be necessary to support essential organizational operations. Additionally, it is sometimes convenient to provide multiple services from a single component (e.g., VPN and IPS); however, doing so increases risk over limiting the services provided by any one component.
+
+To support the requirements and principles of least functionality, the operating system must support the organizational requirements, providing only essential capabilities and limiting the use of ports, protocols, and/or services to only those required, authorized, and approved to conduct official business or to address authorized quality-of-life issues.
+Check Text:
+Inspect the firewall configuration and running services to verify it is configured to prohibit or restrict the use of functions, ports, protocols, and/or services that are unnecessary or prohibited.
+
+Check which services are currently active with the following command:
+
+$ firewall-cmd --list-all-zones | grep -e "active" -e "services"
+
+custom (active)
+target: DROP
+icmp-block-inversion: no
+interfaces: ens33
+sources: 
+services: dhcpv6-client dns http https ldaps rpc-bind ssh
+ports: 
+masquerade: no
+forward-ports: 
+icmp-blocks: 
+rich rules: 
+
+Ask the system administrator (SA) for the site or program Ports, Protocols, and Services Management Component Local Service Assessment (PPSM CLSA). Verify the services allowed by the firewall match the PPSM CLSA. 
+
+If there are additional ports, protocols, or services that are not in the PPSM CLSA, or there are ports, protocols, or services that are prohibited by the PPSM Category Assurance List (CAL), this is a finding.
+Fix Text:
+Update the host's firewall settings and/or running services to comply with the PPSM Component Local Service Assessment (CLSA) for the site or program and the PPSM CAL.
+CCI-000382
+Configure the system to prohibit or restrict the use of organization-defined prohibited or restricted functions, system ports, protocols, software, and/or services.
+NIST SP 800-53 :: CM-7
+NIST SP 800-53A :: CM-7.1 (iii)
+NIST SP 800-53 Revision 4 :: CM-7 b
+NIST SP 800-53 Revision 5 :: CM-7 b
+
+______________________________________________________________
+
+Red Hat Enterprise Linux 8
+Version: 2 Release: 8 Benchmark Date: 01 Jul 2026
+Group ID:
+V-230384
+Rule ID:
+SV-230384r1017193
+STIG ID:
+RHEL-08-020352
+SRG ID:
+SRG-OS-000480-GPOS-00228
+Severity:
+CAT II
+Classification
+UNCLASSIFIED
+Rule Title:
+RHEL 8 must set the umask value to 077 for all local interactive user accounts.
+Discussion:
+The umask controls the default access mode assigned to newly created files. A umask of 077 limits new files to mode 600 or less permissive. Although umask can be represented as a four-digit number, the first digit representing special access modes is typically ignored or required to be "0". This requirement applies to the globally configured system defaults and the local interactive user defaults for each account on the system.
+Check Text:
+Verify that the default umask for all local interactive users is "077".
+
+Identify the locations of all local interactive user home directories by looking at the "/etc/passwd" file.
+
+Check all local interactive user initialization files for interactive users with the following command:
+
+Note: The example is for a system that is configured to create users home directories in the "/home" directory.
+
+$ sudo grep -ir ^umask /home | grep -v '.bash_history'
+
+If any local interactive user initialization files are found to have a umask statement that has a value less restrictive than "077", this is a finding.
+Fix Text:
+Remove the umask statement from all local interactive user's initialization files. 
+
+If the account is for an application, the requirement for a umask less restrictive than "077" can be documented with the Information System Security Officer, but the user agreement for access to the account must specify that the local interactive user must log on to their account first and then switch the user to the application account with the correct option to gain the account's environment variables.
+CCI-000366
+Implement the security configuration settings.
+NIST SP 800-53 :: CM-6 b
+NIST SP 800-53A :: CM-6.1 (iv)
+NIST SP 800-53 Revision 4 :: CM-6 b
+NIST SP 800-53 Revision 5 :: CM-6 b
+
+______________________________________________________________
+
+Red Hat Enterprise Linux 8
+Version: 2 Release: 8 Benchmark Date: 01 Jul 2026
+Group ID:
+V-230379
+Rule ID:
+SV-230379r1017190
+STIG ID:
+RHEL-08-020320
+SRG ID:
+SRG-OS-000480-GPOS-00227
+Severity:
+CAT II
+Classification
+UNCLASSIFIED
+Rule Title:
+RHEL 8 must not have unnecessary accounts.
+Discussion:
+Accounts providing no operational purpose provide additional opportunities for system compromise. Unnecessary accounts include user accounts for individuals not requiring access to the system and application accounts for applications not installed on the system.
+Check Text:
+Verify that there are no unauthorized interactive user accounts with the following command:
+
+$ less /etc/passwd
+
+root:x:0:0:root:/root:/bin/bash
+...
+games:x:12:100:games:/usr/games:/sbin/nologin
+scsaustin:x:1001:1001:scsaustin:/home/scsaustin:/bin/bash
+djohnson:x:1002:1002:djohnson:/home/djohnson:/bin/bash
+
+Interactive user account, generally will have a user identifier (UID) of 1000 or greater, a home directory in a specific partition, and an interactive shell.
+
+Obtain the list of interactive user accounts authorized to be on the system from the system administrator or information system security officer (ISSO) and compare it to the list of local interactive user accounts on the system.
+
+If there are unauthorized local user accounts on the system, this is a finding.
+Fix Text:
+Remove unauthorized local interactive user accounts with the following command where <unauthorized_user> is the unauthorized account:
+
+$ sudo userdel <unauthorized_user>
+CCI-000366
+Implement the security configuration settings.
+NIST SP 800-53 :: CM-6 b
+NIST SP 800-53A :: CM-6.1 (iv)
+NIST SP 800-53 Revision 4 :: CM-6 b
+NIST SP 800-53 Revision 5 :: CM-6 b
+
+______________________________________________________________
+
+
+
+
+
+314 CAT II Rules
+Red Hat Enterprise Linux 8
+Version: 2 Release: 8 Benchmark Date: 01 Jul 2026
+Group ID:
+V-230372
+Rule ID:
+SV-230372r1017184
+STIG ID:
+RHEL-08-020250
+SRG ID:
+SRG-OS-000105-GPOS-00052
+Severity:
+CAT II
+Classification
+UNCLASSIFIED
+Rule Title:
+RHEL 8 must implement smart card logon for multifactor authentication for access to interactive accounts.
+Discussion:
+Using an authentication device, such as a Common Access Card (CAC) or token that is separate from the information system, ensures that even if the information system is compromised, that compromise will not affect credentials stored on the authentication device.
+
+Multifactor solutions that require devices separate from information systems gaining access include, for example, hardware tokens providing time-based or challenge-response authenticators and smart cards such as the U.S. Government Personal Identity Verification card and the DoD CAC.
+
+There are various methods of implementing multifactor authentication for RHEL 8. Some methods include a local system multifactor account mapping or joining the system to a domain and utilizing a Red Hat idM server or Microsoft Windows Active Directory server. Any of these methods will require that the client operating system handle the multifactor authentication correctly.
+
+Satisfies: SRG-OS-000105-GPOS-00052, SRG-OS-000106-GPOS-00053, SRG-OS-000107-GPOS-00054, SRG-OS-000108-GPOS-00055
+Check Text:
+Verify RHEL 8 uses multifactor authentication for local access to accounts.
+
+Note: If the System Administrator demonstrates the use of an approved alternate multifactor authentication method, this requirement is not applicable.
+
+Check that the "pam_cert_auth" setting is set to "true" in the "/etc/sssd/sssd.conf" file.
+
+Check that the "try_cert_auth" or "require_cert_auth" options are configured in both "/etc/pam.d/system-auth" and "/etc/pam.d/smartcard-auth" files with the following command:
+
+     $ sudo grep -ir cert_auth /etc/sssd/sssd.conf /etc/sssd/conf.d/*.conf /etc/pam.d/*
+     /etc/sssd/sssd.conf:pam_cert_auth = True
+     /etc/pam.d/smartcard-auth:auth   sufficient   pam_sss.so try_cert_auth
+     /etc/pam.d/system-auth:auth   [success=done authinfo_unavail=ignore ignore=ignore default=die]   pam_sss.so try_cert_auth
+
+If "pam_cert_auth" is not set to "true" in "/etc/sssd/sssd.conf", this is a finding.
+
+If "pam_sss.so" is not set to "try_cert_auth" or "require_cert_auth" in both the "/etc/pam.d/smartcard-auth" and "/etc/pam.d/system-auth" files, this is a finding.
+Fix Text:
+Configure RHEL 8 to use multifactor authentication for local access to accounts.
+
+Add or update the "pam_cert_auth" setting in the "/etc/sssd/sssd.conf" file to match the following line:
+
+     [pam]
+     pam_cert_auth = True
+
+Add or update "pam_sss.so" with "try_cert_auth" or "require_cert_auth" in the "/etc/pam.d/system-auth" and "/etc/pam.d/smartcard-auth" files based on the following examples:
+
+     /etc/pam.d/smartcard-auth:auth   sufficient   pam_sss.so try_cert_auth
+
+     /etc/pam.d/system-auth:auth   [success=done authinfo_unavail=ignore ignore=ignore default=die]   pam_sss.so try_cert_auth
+
+The "sssd" service must be restarted for the changes to take effect. To restart the "sssd" service, run the following command:
+
+     $ sudo systemctl restart sssd.service
+CCI-000765
+Implement multifactor authentication for access to privileged accounts.
+NIST SP 800-53 :: IA-2 (1)
+NIST SP 800-53A :: IA-2 (1).1
+NIST SP 800-53 Revision 4 :: IA-2 (1)
+NIST SP 800-53 Revision 5 :: IA-2 (1)
+
+_______________________________________________________
+
+Red Hat Enterprise Linux 8
+Version: 2 Release: 8 Benchmark Date: 01 Jul 2026
+Group ID:
+V-230355
+Rule ID:
+SV-230355r1017168
+STIG ID:
+RHEL-08-020090
+SRG ID:
+SRG-OS-000068-GPOS-00036
+Severity:
+CAT II
+Classification
+UNCLASSIFIED
+Rule Title:
+RHEL 8 must map the authenticated identity to the user or group account for PKI-based authentication.
+Discussion:
+Without mapping the certificate used to authenticate to the user account, the ability to determine the identity of the individual user or group will not be available for forensic analysis.
+
+There are various methods of mapping certificates to user/group accounts for RHEL 8. For the purposes of this requirement, the check and fix will account for Active Directory mapping. Some of the other possible methods include joining the system to a domain and utilizing a Red Hat idM server, or a local system mapping, where the system is not part of a domain.
+Check Text:
+Verify the certificate of the user or group is mapped to the corresponding user or group in the "sssd.conf" file with the following command:
+
+Note: If the System Administrator demonstrates the use of an approved alternate multifactor authentication method, this requirement is not applicable.
+
+$ sudo cat /etc/sssd/sssd.conf
+
+[sssd]
+config_file_version = 2
+services = pam, sudo, ssh
+domains = testing.test
+
+[pam]
+pam_cert_auth = True
+
+[domain/testing.test]
+id_provider = ldap
+
+[certmap/testing.test/rule_name]
+matchrule =<SAN>.*EDIPI@mil
+maprule = (userCertificate;binary={cert!bin})
+domains = testing.test
+
+If the certmap section does not exist, ask the System Administrator to indicate how certificates are mapped to accounts. If there is no evidence of certificate mapping, this is a finding.
+Fix Text:
+Configure the operating system to map the authenticated identity to the user or group account by adding or modifying the certmap section of the "/etc/sssd/sssd.conf file based on the following example:
+
+[certmap/testing.test/rule_name]
+matchrule =<SAN>.*EDIPI@mil
+maprule = (userCertificate;binary={cert!bin})
+domains = testing.test
+
+The "sssd" service must be restarted for the changes to take effect. To restart the "sssd" service, run the following command:
+
+$ sudo systemctl restart sssd.service
+CCI-000187
+For public key-based authentication, map the authenticated identity to the account of the individual or group.
+NIST SP 800-53 :: IA-5 (2)
+NIST SP 800-53A :: IA-5 (2).1
+NIST SP 800-53 Revision 4 :: IA-5 (2) (c)
+NIST SP 800-53 Revision 5 :: IA-5 (2) (a) (2)
+
+____________________________________________________________________
+
+
+Red Hat Enterprise Linux 8
+Version: 2 Release: 8 Benchmark Date: 01 Jul 2026
+Group ID:
+V-230339
+Rule ID:
+SV-230339r1017151
+STIG ID:
+RHEL-08-020017
+SRG ID:
+SRG-OS-000021-GPOS-00005
+Severity:
+CAT II
+Classification
+UNCLASSIFIED
+Rule Title:
+RHEL 8 must ensure account lockouts persist.
+Discussion:
+By limiting the number of failed logon attempts, the risk of unauthorized system access via user password guessing, otherwise known as brute-force attacks, is reduced. Limits are imposed by locking the account.
+
+In RHEL 8.2 the "/etc/security/faillock.conf" file was incorporated to centralize the configuration of the pam_faillock.so module.  Also introduced is a "local_users_only" option that will only track failed user authentication attempts for local users in /etc/passwd and ignore centralized (AD, IdM, LDAP, etc.) users to allow the centralized platform to solely manage user lockout.
+
+From "faillock.conf" man pages: Note that the default directory that "pam_faillock" uses is usually cleared on system boot so the access will be reenabled after system reboot. If that is undesirable a different tally directory must be set with the "dir" option.
+
+Satisfies: SRG-OS-000021-GPOS-00005, SRG-OS-000329-GPOS-00128
+Check Text:
+Note: This check applies to RHEL versions 8.2 or newer. If the system is RHEL version 8.0 or 8.1, this check is not applicable.
+
+Verify the "/etc/security/faillock.conf" file is configured use a non-default faillock directory to ensure contents persist after reboot:
+
+$ sudo grep 'dir =' /etc/security/faillock.conf
+
+dir = /var/log/faillock
+
+If the "dir" option is not set to a non-default documented tally log directory, is missing or commented out, this is a finding.
+Fix Text:
+Configure the operating system maintain the contents of the faillock directory after a reboot.
+
+Add/Modify the "/etc/security/faillock.conf" file to match the following line:
+
+dir = /var/log/faillock
+CCI-000044
+Enforce the organization-defined limit of consecutive invalid logon attempts by a user during the organization-defined time period.
+NIST SP 800-53 :: AC-7 a
+NIST SP 800-53A :: AC-7.1 (ii)
+NIST SP 800-53 Revision 4 :: AC-7 a
+NIST SP 800-53 Revision 5 :: AC-7 a
+
+_________________________________________
+
+
+
+
+
+314 CAT II Rules
+Red Hat Enterprise Linux 8
+Version: 2 Release: 8 Benchmark Date: 01 Jul 2026
+Group ID:
+V-230302
+Rule ID:
+SV-230302r1017112
+STIG ID:
+RHEL-08-010590
+SRG ID:
+SRG-OS-000480-GPOS-00227
+Severity:
+CAT II
+Classification
+UNCLASSIFIED
+Rule Title:
+RHEL 8 must prevent code from being executed on file systems that contain user home directories.
+Discussion:
+The "noexec" mount option causes the system not to execute binary files. This option must be used for mounting any file system not containing approved binary files, as they may be incompatible. Executing files from untrusted file systems increases the opportunity for unprivileged users to attain unauthorized administrative access.
+Check Text:
+Verify file systems that contain user home directories are mounted with the "noexec" option.
+
+Note: If a separate file system has not been created for the user home directories (user home directories are mounted under "/"), this is automatically a finding as the "noexec" option cannot be used on the "/" system.
+
+Find the file system(s) that contain the user home directories with the following command:
+
+$ sudo awk -F: '($3>=1000)&&($7 !~ /nologin/){print $1,$3,$6}' /etc/passwd
+
+smithj:1001: /home/smithj
+robinst:1002: /home/robinst
+
+Check the file systems that are mounted at boot time with the following command:
+
+$ sudo more /etc/fstab
+
+UUID=a411dc99-f2a1-4c87-9e05-184977be8539 /home ext4 rw,relatime,discard,data=ordered,nosuid,nodev,noexec 0 2
+
+If a file system found in "/etc/fstab" refers to the user home directory file system and it does not have the "noexec" option set, this is a finding.
+Fix Text:
+Configure the "/etc/fstab" to use the "noexec" option on file systems that contain user home directories for interactive users.
+CCI-000366
+Implement the security configuration settings.
+NIST SP 800-53 :: CM-6 b
+NIST SP 800-53A :: CM-6.1 (iv)
+NIST SP 800-53 Revision 4 :: CM-6 b
+NIST SP 800-53 Revision 5 :: CM-6 b
+
+_________________________________________
+
+
+
+
+
+314 CAT II Rules
+Red Hat Enterprise Linux 8
+Version: 2 Release: 8 Benchmark Date: 01 Jul 2026
+Group ID:
+V-230287
+Rule ID:
+SV-230287r1208746
+STIG ID:
+RHEL-08-010490
+SRG ID:
+SRG-OS-000480-GPOS-00227
+Severity:
+CAT II
+Classification
+UNCLASSIFIED
+Rule Title:
+The RHEL 8 SSH private host key files must have mode 0600 or less permissive.
+Discussion:
+If an unauthorized user obtains the private SSH host key file, the host could be impersonated.
+Check Text:
+Verify the SSH private host key files have mode "0600" or less permissive with the following command:
+
+$ sudo ls -l /etc/ssh/ssh_host*key
+-rw------- 1 root ssh_keys 668 Nov 28 06:43 ssh_host_dsa_key
+-rw------- 1 root ssh_keys 582 Nov 28 06:43 ssh_host_key
+-rw------- 1 root ssh_keys 887 Nov 28 06:43 ssh_host_rsa_key
+
+If any private host key file has a mode more permissive than "0600", this is a finding.
+Fix Text:
+Configure the mode of SSH private host key files under "/etc/ssh" to "0600" with the following command:
+
+$ sudo chmod 0600 /etc/ssh/ssh_host*key
+
+The SSH daemon must be restarted for the changes to take effect. To restart the SSH daemon, run the following command:
+
+$ sudo systemctl restart sshd.service
+CCI-000366
+Implement the security configuration settings.
+NIST SP 800-53 :: CM-6 b
+NIST SP 800-53A :: CM-6.1 (iv)
+NIST SP 800-53 Revision 4 :: CM-6 b
+NIST SP 800-53 Revision 5 :: CM-6 b
+
+_________________________________________
+
+
+
+
+
+314 CAT II Rules
+Red Hat Enterprise Linux 8
+Version: 2 Release: 8 Benchmark Date: 01 Jul 2026
+Group ID:
+V-230274
+Rule ID:
+SV-230274r1017089
+STIG ID:
+RHEL-08-010400
+SRG ID:
+SRG-OS-000375-GPOS-00160
+Severity:
+CAT II
+Classification
+UNCLASSIFIED
+Rule Title:
+RHEL 8 must implement certificate status checking for multifactor authentication.
+Discussion:
+Using an authentication device, such as a DoD Common Access Card (CAC) or token that is separate from the information system, ensures that even if the information system is compromised, credentials stored on the authentication device will not be affected.
+
+Multifactor solutions that require devices separate from information systems gaining access include, for example, hardware tokens providing time-based or challenge-response authenticators and smart cards such as the U.S. Government Personal Identity Verification (PIV) card and the DoD CAC.
+
+RHEL 8 includes multiple options for configuring certificate status checking, but for this requirement focuses on the System Security Services Daemon (SSSD). By default, sssd performs Online Certificate Status Protocol (OCSP) checking and certificate verification using a sha256 digest function.
+
+Satisfies: SRG-OS-000375-GPOS-00160, SRG-OS-000377-GPOS-00162
+Check Text:
+Verify the operating system implements certificate status checking for multifactor authentication.
+
+Note: If the System Administrator demonstrates the use of an approved alternate multifactor authentication method, this requirement is not applicable.
+
+Check to see if Online Certificate Status Protocol (OCSP) is enabled and using the proper digest value on the system with the following command:
+
+$ sudo grep certificate_verification /etc/sssd/sssd.conf /etc/sssd/conf.d/*.conf | grep -v "^#"
+
+certificate_verification = ocsp_dgst=sha1
+
+If the certificate_verification line is missing from the [sssd] section, or is missing "ocsp_dgst=sha1", ask the administrator to indicate what type of multifactor authentication is being utilized and how the system implements certificate status checking.  If there is no evidence of certificate status checking being used, this is a finding.
+Fix Text:
+Configure the operating system to implement certificate status checking for multifactor authentication.
+
+Review the "/etc/sssd/sssd.conf" file to determine if the system is configured to prevent OCSP or certificate verification.
+
+Add the following line to the [sssd] section of the "/etc/sssd/sssd.conf" file:
+
+certificate_verification = ocsp_dgst=sha1
+
+The "sssd" service must be restarted for the changes to take effect. To restart the "sssd" service, run the following command:
+
+$ sudo systemctl restart sssd.service
+CCI-001948
+The information system implements multifactor authentication for remote access to privileged accounts such that one of the factors is provided by a device separate from the system gaining access.
+NIST SP 800-53 Revision 4 :: IA-2 (11)
+CCI-004046
+Implement multi-factor authentication for local; network; and/or remote access to privileged accounts; and/or non-privileged accounts such that one of the factors is provided by a device separate from the system gaining access.
+NIST SP 800-53 Revision 5 :: IA-2 (6) (a)
+
+_________________________________________
+
+Red Hat Enterprise Linux 8
+Version: 2 Release: 8 Benchmark Date: 01 Jul 2026
+Group ID:
+V-230229
+Rule ID:
+SV-230229r1017048
+STIG ID:
+RHEL-08-010090
+SRG ID:
+SRG-OS-000066-GPOS-00034
+Severity:
+CAT II
+Classification
+UNCLASSIFIED
+Rule Title:
+RHEL 8, for PKI-based authentication, must validate certificates by constructing a certification path (which includes status information) to an accepted trust anchor.
+Discussion:
+Without path validation, an informed trust decision by the relying party cannot be made when presented with any certificate not already explicitly trusted.
+
+A trust anchor is an authoritative entity represented via a public key and associated data. It is used in the context of public key infrastructures, X.509 digital certificates, and DNSSEC.
+
+When there is a chain of trust, usually the top entity to be trusted becomes the trust anchor; it can be, for example, a Certification Authority (CA). A certification path starts with the subject certificate and proceeds through a number of intermediate certificates up to a trusted root certificate, typically issued by a trusted CA.
+
+This requirement verifies that a certification path to an accepted trust anchor is used for certificate validation and that the path includes status information. Path validation is necessary for a relying party to make an informed trust decision when presented with any certificate not already explicitly trusted. Status information for certification paths includes certificate revocation lists or online certificate status protocol responses. Validation of the certificate status information is out of scope for this requirement.
+
+Satisfies: SRG-OS-000066-GPOS-00034, SRG-OS-000384-GPOS-00167
+Check Text:
+Verify RHEL 8 for PKI-based authentication has valid certificates by constructing a certification path (which includes status information) to an accepted trust anchor.
+
+Note: If the System Administrator demonstrates the use of an approved alternate multifactor authentication method, this requirement is not applicable.
+
+Check that the system has a valid DoD root CA installed with the following command:
+
+$ sudo openssl x509 -text -in /etc/sssd/pki/sssd_auth_ca_db.pem
+
+Certificate:
+   Data:
+      Version: 3 (0x2)
+      Serial Number: 1 (0x1)
+      Signature Algorithm: sha256WithRSAEncryption
+      Issuer: C = US, O = U.S. Government, OU = DoD, OU = PKI, CN = DoD Root CA 3
+      Validity
+         Not Before: Mar 20 18:46:41 2012 GMT
+         Not After   : Dec 30 18:46:41 2029 GMT
+      Subject: C = US, O = U.S. Government, OU = DoD, OU = PKI, CN = DoD Root CA 3
+      Subject Public Key Info:
+         Public Key Algorithm: rsaEncryption
+
+If the root ca file is not a DoD-issued certificate with a valid date and installed in the /etc/sssd/pki/sssd_auth_ca_db.pem location, this is a finding.
+Fix Text:
+Configure RHEL 8, for PKI-based authentication, to validate certificates by constructing a certification path (which includes status information) to an accepted trust anchor.
+
+Obtain a valid copy of the DoD root CA file from the PKI CA certificate bundle at cyber.mil and copy into the following file:
+
+/etc/sssd/pki/sssd_auth_ca_db.pem
+CCI-000185
+For public key-based authentication, validate certificates by constructing and verifying a certification path to an accepted trust anchor including checking certificate status information.
+NIST SP 800-53 :: IA-5 (2)
+NIST SP 800-53A :: IA-5 (2).1
+NIST SP 800-53 Revision 4 :: IA-5 (2) (a)
+NIST SP 800-53 Revision 5 :: IA-5 (2) (b) (1)
+
+_________________________________________
+

@@ -1,0 +1,58 @@
+---
+# RHEL-08-040030 | Ports, protocols and services must match the PPSM CAL/CLSA.
+#
+# MANUAL. The fix text contains no command, because the requirement is not a
+# setting: "Update the host's firewall settings and/or running services to
+# comply with the PPSM Component Local Service Assessment (CLSA) for the site or
+# program and the PPSM CAL." Compliance is defined by two documents held by the
+# program, compared by a human against what the host is actually running.
+#
+# Automating a guess here would be worse than doing nothing: closing a port the
+# CLSA authorizes breaks a mission service, and opening one it does not is a new
+# finding. So the role gathers the evidence an assessor needs and always reports
+# Open. This control is expected to be closed by a documented risk acceptance or
+# by a human confirming the comparison, not by a playbook.
+
+- name: RHEL-08-040030 | Check whether firewalld is running
+  ansible.builtin.systemd:
+    name: firewalld
+  register: stig_040030_firewalld
+  changed_when: false
+  failed_when: false
+
+- name: RHEL-08-040030 | Capture the active firewall configuration
+  ansible.builtin.shell:
+    cmd: "set -o pipefail; firewall-cmd --list-all-zones 2>/dev/null || true"
+    executable: /bin/bash
+  register: stig_040030_zones
+  changed_when: false
+  check_mode: false
+  when: stig_040030_firewalld.status.ActiveState | default('inactive') == 'active'
+
+- name: RHEL-08-040030 | Capture the listening sockets
+  ansible.builtin.shell:
+    cmd: "set -o pipefail; ss -tulpnH 2>/dev/null | awk '{print $1, $5, $7}' | sort -u || true"
+    executable: /bin/bash
+  register: stig_040030_sockets
+  changed_when: false
+  check_mode: false
+
+- name: RHEL-08-040030 | Present the evidence for the PPSM comparison
+  ansible.builtin.debug:
+    msg: >-
+      firewalld is {{ stig_040030_firewalld.status.ActiveState | default('not present') }}.
+      Compare the active zones and listening sockets in the evidence artifact against
+      the site PPSM CLSA and the PPSM CAL. Anything listening that the CLSA does not
+      authorize, or anything the CAL prohibits, is a finding.
+
+- name: RHEL-08-040030 | Record result
+  ansible.builtin.include_tasks: record.yml
+  vars:
+    _stig_id: RHEL-08-040030
+    _status: Open
+    _detail: >-
+      Manual control - no automatable fix exists. firewalld
+      {{ stig_040030_firewalld.status.ActiveState | default('not present') }}.
+      Active zones: {{ (stig_040030_zones.stdout_lines | default([]) | select('search', '(active)') | list | join('; ')) | default('none captured', true) }}.
+      Listening sockets: {{ stig_040030_sockets.stdout_lines | default([]) | length }} captured in this evidence document.
+      Closure requires a human comparison against the site PPSM CLSA and the PPSM CAL.

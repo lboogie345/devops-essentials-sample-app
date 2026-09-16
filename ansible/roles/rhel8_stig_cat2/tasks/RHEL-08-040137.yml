@@ -1,0 +1,102 @@
+---
+# RHEL-08-040137 | fapolicyd must enforce a deny-all, permit-by-exception policy.
+#
+# GATED, and the most dangerous control in the benchmark to automate. The STIG's
+# own discussion says it plainly: "Improper configuration may render the system
+# nonfunctional", and fapolicyd is not namespace-aware, so it breaks containers.
+#
+# The fix text prescribes an order that automation must not shortcut:
+#   1. install and enable fapolicyd with permissive = 1
+#   2. build the allow list, verify nothing legitimate is blocked
+#   3. only then set permissive = 0
+#
+# Step 3 is what the check grades, and it is the step that locks a host out of
+# running its own software. The role will not take it without an explicit,
+# separate opt-in asserting the allow list has been built and tested.
+
+- name: RHEL-08-040137 | Report that the control is not configured
+  ansible.builtin.debug:
+    msg: >-
+      RHEL-08-040137 is gated and not enabled. Enabling application allow listing
+      is a project, not a playbook run: stand fapolicyd up in permissive mode,
+      build the allow list from observed denials, then set
+      stig_040137_enforce=true once nothing legitimate is being blocked.
+  when: not (stig_040137_enabled | bool)
+
+- name: RHEL-08-040137 | Record the unconfigured state
+  ansible.builtin.include_tasks: record.yml
+  vars:
+    _stig_id: RHEL-08-040137
+    _status: Open
+    _detail: >-
+      Gated control not enabled. Requires an organization-built fapolicyd allow
+      list before enforcement mode can be set.
+  when: not (stig_040137_enabled | bool)
+
+- name: RHEL-08-040137 | Configure fapolicyd
+  when: stig_040137_enabled | bool
+  block:
+    - name: RHEL-08-040137 | Install fapolicyd
+      ansible.builtin.dnf:
+        name: fapolicyd
+        state: present
+      when: not (stig_audit_only | bool)
+
+    - name: RHEL-08-040137 | Ensure a terminal deny-all rule exists
+      ansible.builtin.copy:
+        content: |
+          # {{ ansible_managed }}
+          # DISA STIG RHEL-08-040137 (V-244546)
+          # Terminal rule. Everything not permitted by a lower-numbered file in
+          # /etc/fapolicyd/rules.d is denied. Allow rules belong in their own
+          # files numbered below this one, not here.
+          deny_audit perm=any pattern=ld_so : all
+          deny perm=any all : all
+        dest: "{{ stig_040137_denyall_rule_file }}"
+        owner: root
+        group: fapolicyd
+        mode: "0644"
+        backup: "{{ stig_backup | bool }}"
+      register: stig_040137_rules
+      when: not (stig_audit_only | bool)
+
+    - name: RHEL-08-040137 | Set the enforcement mode
+      ansible.builtin.lineinfile:
+        path: /etc/fapolicyd/fapolicyd.conf
+        regexp: '^[[:space:]]*permissive[[:space:]]*='
+        line: "permissive = {{ stig_040137_enforce | ternary('0', '1') }}"
+        owner: root
+        group: fapolicyd
+        mode: "0644"
+        backup: "{{ stig_backup | bool }}"
+      register: stig_040137_mode
+      when: not (stig_audit_only | bool)
+      notify: stig_fapolicyd_restart
+
+    - name: RHEL-08-040137 | Enable the service
+      ansible.builtin.systemd:
+        name: fapolicyd
+        enabled: true
+        state: started
+      when: not (stig_audit_only | bool)
+
+    - name: RHEL-08-040137 | Warn that permissive mode is not compliant
+      ansible.builtin.debug:
+        msg: >-
+          fapolicyd is configured but left in permissive mode (permissive = 1),
+          which is the safe staging state and still a finding. Build the allow
+          list, confirm no legitimate execution is being denied, then set
+          stig_040137_enforce=true.
+      when: not (stig_040137_enforce | bool)
+
+    - name: RHEL-08-040137 | Record result
+      ansible.builtin.include_tasks: record.yml
+      vars:
+        _stig_id: RHEL-08-040137
+        _status: "{{ stig_040137_enforce | bool | ternary('NotAFinding', 'Open') }}"
+        _changed: >-
+          {{ (stig_040137_rules.changed | default(false))
+             or (stig_040137_mode.changed | default(false)) }}
+        _detail: >-
+          Deny-all terminal rule in {{ stig_040137_denyall_rule_file }};
+          permissive = {{ stig_040137_enforce | ternary('0 (enforcing)', '1 (staging, still a finding)') }}.

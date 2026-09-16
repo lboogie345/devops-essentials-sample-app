@@ -26,3 +26,22 @@
     cmd: "authselect apply-changes -b"
   changed_when: true
   listen: stig_authselect_apply
+
+- name: Restart sshd
+  ansible.builtin.systemd:
+    name: sshd
+    state: restarted
+  when: stig_010490_restart_sshd | bool
+  listen: stig_sshd_restart
+
+- name: Restart sssd
+  ansible.builtin.systemd:
+    name: sssd
+    state: restarted
+  listen: stig_sssd_restart
+
+- name: Restart fapolicyd
+  ansible.builtin.systemd:
+    name: fapolicyd
+    state: restarted
+  listen: stig_fapolicyd_restart

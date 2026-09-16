@@ -15,21 +15,29 @@ import pytest
 from scripts.stig import gen_control_docs as gen
 
 REPO = Path(__file__).resolve().parents[2]
-EXPORT = REPO / "ansible/controls/disa-exports/RHEL8-V2R8-CAT_II.txt"
+EXPORTS = [REPO / "ansible/controls/disa-exports"]
 MANIFEST = REPO / "ansible/controls/rhel8_cat2_controls.yml"
 TASKS = REPO / "ansible/roles/rhel8_stig_cat2/tasks"
 COMMITTED = REPO / "docs/CONTROL-REFERENCE.md"
 
 
+def _controls():
+    return gen.disa.parse_exports(EXPORTS)
+
+
+def _render():
+    return gen.render(
+        _controls(), gen.load_manifest(MANIFEST), TASKS, gen.disa.collect_export_files(EXPORTS)
+    )
+
+
 @pytest.fixture
 def rendered() -> str:
-    controls = gen.disa.parse_export(EXPORT.read_text(encoding="utf-8"))
-    return gen.render(controls, gen.load_manifest(MANIFEST), TASKS, EXPORT)
+    return _render()
 
 
 def test_counts_follow_the_export(rendered):
-    controls = gen.disa.parse_export(EXPORT.read_text(encoding="utf-8"))
-    n = len(controls)
+    n = len(_controls())
     # Every control contributes exactly one check and one remediation, so the
     # three totals are equal by construction whatever the export contains.
     assert f"**{n} controls - {n} checks - {n} remediations.**" in rendered
@@ -40,9 +48,7 @@ def test_counts_follow_the_export(rendered):
 def test_committed_document_is_current():
     # Guards the same thing CI guards, so a local run catches it first.
     assert COMMITTED.exists(), "run: python scripts/stig/gen_control_docs.py --write"
-    controls = gen.disa.parse_export(EXPORT.read_text(encoding="utf-8"))
-    expected = gen.render(controls, gen.load_manifest(MANIFEST), TASKS, EXPORT)
-    assert COMMITTED.read_text(encoding="utf-8") == expected
+    assert COMMITTED.read_text(encoding="utf-8") == _render()
 
 
 def test_every_control_maps_to_its_implementation_not_the_orchestrator(rendered):
@@ -60,10 +66,14 @@ def test_sysctl_controls_share_one_task_file():
 def test_unimplemented_control_is_reported_as_a_gap(tmp_path):
     empty_tasks = tmp_path / "tasks"
     empty_tasks.mkdir()
-    controls = gen.disa.parse_export(EXPORT.read_text(encoding="utf-8"))
-    out = gen.render(controls, gen.load_manifest(MANIFEST), empty_tasks, EXPORT)
+    out = gen.render(
+        _controls(),
+        gen.load_manifest(MANIFEST),
+        empty_tasks,
+        gen.disa.collect_export_files(EXPORTS),
+    )
     assert "Coverage gap" in out
-    assert "Implemented by the role: **0 of 15**" in out
+    assert f"Implemented by the role: **0 of {len(_controls())}**" in out
     assert "**not implemented**" in out
 
 
@@ -77,8 +87,8 @@ def test_check_mode_passes_on_the_committed_document(capsys):
     rc = gen.main(
         [
             "--check",
-            "--export",
-            str(EXPORT),
+            "--exports",
+            *[str(e) for e in EXPORTS],
             "--manifest",
             str(MANIFEST),
             "--tasks-dir",
@@ -97,8 +107,8 @@ def test_check_mode_fails_and_diffs_a_stale_document(tmp_path, capsys):
     rc = gen.main(
         [
             "--check",
-            "--export",
-            str(EXPORT),
+            "--exports",
+            *[str(e) for e in EXPORTS],
             "--manifest",
             str(MANIFEST),
             "--tasks-dir",
@@ -114,7 +124,7 @@ def test_check_mode_fails_and_diffs_a_stale_document(tmp_path, capsys):
 
 
 def test_missing_export_is_a_usage_error(tmp_path, capsys):
-    rc = gen.main(["--write", "--export", str(tmp_path / "nope.txt")])
+    rc = gen.main(["--write", "--exports", str(tmp_path / "nope.txt")])
     assert rc == 2
     assert "error:" in capsys.readouterr().err
 

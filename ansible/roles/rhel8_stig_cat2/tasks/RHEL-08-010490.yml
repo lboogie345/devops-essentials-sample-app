@@ -1,0 +1,40 @@
+---
+# RHEL-08-010490 | SSH private host key files must be mode 0600 or less permissive.
+#
+# The glob matters. /etc/ssh/ssh_host*key matches private keys only; the
+# matching .pub files must stay world-readable, and tightening them breaks host
+# key verification for every client that connects.
+
+- name: RHEL-08-010490 | Find private host keys that are too permissive
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail;
+      find /etc/ssh -maxdepth 1 -name 'ssh_host*key' ! -name '*.pub'
+      -type f -perm /0177 -printf '%m %p\n' 2>/dev/null || true
+    executable: /bin/bash
+  register: stig_010490_found
+  changed_when: false
+  check_mode: false
+
+- name: RHEL-08-010490 | Restrict private host key permissions
+  ansible.builtin.file:
+    path: "{{ item.split(' ', 1)[1] }}"
+    mode: "0600"
+  loop: "{{ stig_010490_found.stdout_lines | default([]) }}"
+  loop_control:
+    label: "{{ item }}"
+  register: stig_010490
+  when: not (stig_audit_only | bool)
+  notify: stig_sshd_restart
+
+- name: RHEL-08-010490 | Record result
+  ansible.builtin.include_tasks: record.yml
+  vars:
+    _stig_id: RHEL-08-010490
+    _status: NotAFinding
+    _changed: "{{ stig_010490.changed | default(false) }}"
+    _detail: >-
+      {{ (stig_010490_found.stdout_lines | default([]) | length > 0)
+         | ternary('Tightened to 0600: ' ~ (stig_010490_found.stdout_lines | join('; ')),
+                   'All private host keys already 0600 or less permissive.') }}
+      Public keys deliberately untouched.

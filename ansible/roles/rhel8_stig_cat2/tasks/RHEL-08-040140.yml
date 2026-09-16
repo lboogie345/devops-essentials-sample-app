@@ -1,0 +1,127 @@
+---
+# RHEL-08-040140 | Unauthorized peripherals must be blocked before connection.
+#
+# GATED. The fix text carries its own warning: "Enabling and starting usbguard
+# without properly configuring it for an individual system will immediately
+# prevent any access over a usb device such as a keyboard or mouse." On a
+# physical host that is a console lockout, recoverable only at the hardware.
+#
+# The check text also supplies a genuine exemption: a virtual machine with no
+# USB peripherals attached is not a finding. That is detected rather than
+# assumed, and recorded as Not_Applicable.
+
+- name: RHEL-08-040140 | Detect a virtual machine with no USB peripherals
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail;
+      ls -1 /sys/bus/usb/devices 2>/dev/null | grep -vE '^usb[0-9]+$' | wc -l
+    executable: /bin/bash
+  register: stig_040140_usb
+  changed_when: false
+  check_mode: false
+
+- name: RHEL-08-040140 | Record non-applicability for a VM with no USB devices
+  ansible.builtin.include_tasks: record.yml
+  vars:
+    _stig_id: RHEL-08-040140
+    _status: Not_Applicable
+    _detail: >-
+      Virtualization role is {{ ansible_facts['virtualization_role'] | default('unknown') }}
+      ({{ ansible_facts['virtualization_type'] | default('n/a') }}) with no USB peripherals
+      attached; not a finding per the check text.
+  when:
+    - ansible_facts['virtualization_role'] | default('') == 'guest'
+    - (stig_040140_usb.stdout | default('0') | trim | int) == 0
+
+- name: RHEL-08-040140 | Report that the control is not configured
+  ansible.builtin.debug:
+    msg: >-
+      RHEL-08-040140 is gated and not enabled. usbguard must be given a generated
+      policy that includes the console keyboard before the service is started, or
+      the host loses USB input at that moment. Generate a policy on a
+      representative host, review it, then set stig_040140_enabled=true.
+  when:
+    - not (stig_040140_enabled | bool)
+    - not (ansible_facts['virtualization_role'] | default('') == 'guest'
+           and (stig_040140_usb.stdout | default('0') | trim | int) == 0)
+
+- name: RHEL-08-040140 | Record the unconfigured state
+  ansible.builtin.include_tasks: record.yml
+  vars:
+    _stig_id: RHEL-08-040140
+    _status: Open
+    _detail: >-
+      Gated control not enabled. Requires an organization-reviewed USBGuard policy
+      listing the authorized peripherals.
+  when:
+    - not (stig_040140_enabled | bool)
+    - not (ansible_facts['virtualization_role'] | default('') == 'guest'
+           and (stig_040140_usb.stdout | default('0') | trim | int) == 0)
+
+- name: RHEL-08-040140 | Configure USBGuard
+  when:
+    - stig_040140_enabled | bool
+    - not (ansible_facts['virtualization_role'] | default('') == 'guest'
+           and (stig_040140_usb.stdout | default('0') | trim | int) == 0)
+  block:
+    - name: RHEL-08-040140 | Install usbguard
+      ansible.builtin.dnf:
+        name: usbguard
+        state: present
+      when: not (stig_audit_only | bool)
+
+    - name: RHEL-08-040140 | Check for an existing rules file
+      ansible.builtin.stat:
+        path: /etc/usbguard/rules.conf
+      register: stig_040140_rules
+
+    - name: RHEL-08-040140 | Generate a policy from the currently attached devices
+      ansible.builtin.shell:
+        cmd: set -o pipefail; usbguard generate-policy > /etc/usbguard/rules.conf
+        executable: /bin/bash
+      register: stig_040140_generated
+      changed_when: true
+      when:
+        - not (stig_audit_only | bool)
+        - not stig_040140_rules.stat.exists or (stig_040140_rules.stat.size | default(0)) == 0
+        - stig_040140_generate_policy | bool
+
+    - name: RHEL-08-040140 | Secure the rules file
+      ansible.builtin.file:
+        path: /etc/usbguard/rules.conf
+        owner: root
+        group: root
+        mode: "0600"
+      when:
+        - not (stig_audit_only | bool)
+        - stig_040140_rules.stat.exists or (stig_040140_generated.changed | default(false))
+
+    - name: RHEL-08-040140 | Refuse to start usbguard without a policy
+      ansible.builtin.assert:
+        that:
+          - stig_040140_rules.stat.exists or (stig_040140_generated.changed | default(false))
+        fail_msg: >-
+          /etc/usbguard/rules.conf is missing or empty. Starting usbguard now would
+          block every USB device on this host, including the console keyboard.
+          Generate and review a policy first, or set stig_040140_generate_policy=true
+          to have this run generate one from the devices currently attached.
+
+    - name: RHEL-08-040140 | Enable the service
+      ansible.builtin.systemd:
+        name: usbguard
+        enabled: true
+        state: started
+      when: not (stig_audit_only | bool)
+
+    - name: RHEL-08-040140 | Record result
+      ansible.builtin.include_tasks: record.yml
+      vars:
+        _stig_id: RHEL-08-040140
+        _status: NotAFinding
+        _changed: "{{ stig_040140_generated.changed | default(false) }}"
+        _detail: >-
+          usbguard enabled with a policy at /etc/usbguard/rules.conf
+          ({{ (stig_040140_generated.changed | default(false))
+              | ternary('generated from attached devices this run', 'pre-existing') }}).
+          The assessor still compares the rule set against the ISSO-authorized
+          peripheral list, which automation cannot supply.

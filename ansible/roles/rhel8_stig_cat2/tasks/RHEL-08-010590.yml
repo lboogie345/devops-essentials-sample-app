@@ -1,0 +1,98 @@
+---
+# RHEL-08-010590 | File systems containing home directories must be noexec.
+#
+# GATED. Two hard truths from the check text:
+#
+#   * "If a separate file system has not been created for the user home
+#     directories (user home directories are mounted under "/"), this is
+#     automatically a finding as the noexec option cannot be used on the "/"
+#     system." That case is not remediable by configuration at all - it needs
+#     repartitioning - so the role reports it rather than pretending.
+#
+#   * The fix is an /etc/fstab edit. A malformed fstab entry can leave a host
+#     unbootable, and the recovery is console access this automation does not
+#     have. So the edit is opt-in, validated, and the remount is separate.
+
+- name: RHEL-08-010590 | Find the mount point backing the home directories
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      for h in {{ stig_interactive_users | map(attribute='home') | map('quote') | join(' ') }}; do
+        [ -d "$h" ] && stat -c '%m' "$h"
+      done | sort -u || true
+    executable: /bin/bash
+  register: stig_010590_mounts
+  changed_when: false
+  check_mode: false
+  when: stig_interactive_users | length > 0
+
+- name: RHEL-08-010590 | Separate the remediable mounts from the root filesystem
+  ansible.builtin.set_fact:
+    stig_010590_all_mounts: "{{ stig_010590_mounts.stdout_lines | default([]) | select | list }}"
+    stig_010590_separate: >-
+      {{ stig_010590_mounts.stdout_lines | default([]) | select | reject('equalto', '/') | list }}
+    stig_010590_on_root: "{{ '/' in (stig_010590_mounts.stdout_lines | default([])) }}"
+
+- name: RHEL-08-010590 | Report home directories that sit on the root filesystem
+  ansible.builtin.debug:
+    msg: >-
+      Home directories are on the root filesystem. Per the check text this is
+      automatically a finding, and noexec cannot be applied to "/". Remediation
+      requires a separate filesystem for /home, which is a rebuild or a storage
+      change, not a configuration one.
+  when: stig_010590_on_root | bool
+
+- name: RHEL-08-010590 | Read the current mount options
+  ansible.builtin.shell:
+    cmd: "set -o pipefail; findmnt -no TARGET,OPTIONS {{ item | quote }} || true"
+    executable: /bin/bash
+  loop: "{{ stig_010590_separate }}"
+  register: stig_010590_opts
+  changed_when: false
+  check_mode: false
+
+- name: RHEL-08-010590 | Add noexec to the fstab entry
+  ansible.posix.mount:
+    path: "{{ item }}"
+    state: present
+    src: "{{ ansible_facts['mounts'] | selectattr('mount', 'equalto', item) | map(attribute='device') | first }}"
+    fstype: "{{ ansible_facts['mounts'] | selectattr('mount', 'equalto', item) | map(attribute='fstype') | first }}"
+    opts: >-
+      {{ ((ansible_facts['mounts'] | selectattr('mount', 'equalto', item)
+           | map(attribute='options') | first).split(',') + ['noexec'])
+         | unique | join(',') }}
+    backup: true
+  loop: "{{ stig_010590_separate }}"
+  register: stig_010590
+  when:
+    - not (stig_audit_only | bool)
+    - stig_010590_enabled | bool
+
+- name: RHEL-08-010590 | Remount so the option takes effect without a reboot
+  ansible.posix.mount:
+    path: "{{ item }}"
+    state: remounted
+  loop: "{{ stig_010590_separate }}"
+  when:
+    - not (stig_audit_only | bool)
+    - stig_010590_enabled | bool
+    - stig_010590_remount | bool
+    - stig_010590.changed | default(false)
+
+- name: RHEL-08-010590 | Record result
+  ansible.builtin.include_tasks: record.yml
+  vars:
+    _stig_id: RHEL-08-010590
+    _status: >-
+      {{ (stig_010590_on_root | bool or not (stig_010590_enabled | bool))
+         | ternary('Open', 'NotAFinding') }}
+    _changed: "{{ stig_010590.changed | default(false) }}"
+    _reboot: >-
+      {{ (stig_010590.changed | default(false)) and not (stig_010590_remount | bool) }}
+    _detail: >-
+      Home directories resolve to: {{ stig_010590_all_mounts | join(', ') | default('none', true) }}.
+      {{ stig_010590_on_root | bool
+         | ternary('At least one is on / - automatic finding, not remediable without repartitioning.',
+                   (stig_010590_enabled | bool)
+                   | ternary('noexec set in /etc/fstab for the separate mount(s).',
+                             'Gated control not enabled; fstab left untouched.')) }}

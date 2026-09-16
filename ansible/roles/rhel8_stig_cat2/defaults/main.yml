@@ -25,6 +25,14 @@ stig_backup: true
 # this change" without a separate lookup.
 stig_change_ticket: ""
 
+# Definition of a "local interactive user" shared by the home-directory
+# controls (RHEL-08-010731, -010741, -020352, -010590). The STIG's own wording
+# is UID >= 1000 with a real login shell.
+stig_interactive_uid_min: 1000
+# Accounts to leave alone even though they match. Application accounts with an
+# ISSO-documented exception belong here, not in a fork of the role.
+stig_home_user_exclusions: []
+
 # ---------------------------------------------------------------------------
 # RHEL-08-010019 | vendor package signing keys
 # ---------------------------------------------------------------------------
@@ -151,3 +159,130 @@ stig_040400_logins: []
 # mapped, including future ones. Stage it on a non-production host first.
 stig_040400_set_default_user_u: false
 stig_040400_ssh_sysadm_login: false
+
+# ===========================================================================
+# Controls added from RHEL8-V2R8-CAT_II-002.txt
+# ===========================================================================
+
+# Shared by every PKI/MFA control (RHEL-08-010090, -010400, -020090, -020250).
+# The check texts all carry the same escape: "If the System Administrator
+# demonstrates the use of an approved alternate multifactor authentication
+# method, this requirement is not applicable." Setting this records them as
+# Not_Applicable with the reference attached, rather than leaving four
+# permanent Open findings that nobody can close.
+stig_mfa_alternate: false
+stig_mfa_alternate_ref: ""
+
+# ---------------------------------------------------------------------------
+# RHEL-08-010090 | PKI trust anchor
+# ---------------------------------------------------------------------------
+stig_010090_ca_db: /etc/sssd/pki/sssd_auth_ca_db.pem
+# Path to a vetted DoD CA bundle on the control node. Empty means verify-only.
+# Never point this at a URL: fetching a trust anchor over the network defeats
+# the control it is meant to satisfy.
+stig_010090_ca_source: ""
+
+# ---------------------------------------------------------------------------
+# RHEL-08-010400 | certificate status checking
+# ---------------------------------------------------------------------------
+stig_010400_verification: "ocsp_dgst=sha1"
+
+# ---------------------------------------------------------------------------
+# RHEL-08-010490 | SSH private host key permissions
+# ---------------------------------------------------------------------------
+stig_010490_enabled: true
+# Restarting sshd does not drop established sessions, but it is still a service
+# restart on every host in the batch. Set false to defer to a maintenance window.
+stig_010490_restart_sshd: true
+
+# ---------------------------------------------------------------------------
+# RHEL-08-010590 | noexec on home directory filesystems    [GATED]
+# ---------------------------------------------------------------------------
+# Off by default: this edits /etc/fstab, and a malformed entry can leave a host
+# unbootable with recovery only through console access.
+stig_010590_enabled: false
+# Remount immediately rather than waiting for a reboot. noexec takes effect for
+# new executions at remount; long-running processes already started from the
+# filesystem are unaffected.
+stig_010590_remount: false
+
+# ---------------------------------------------------------------------------
+# RHEL-08-010731 | home directory file modes
+# ---------------------------------------------------------------------------
+stig_010731_enabled: true
+
+# ---------------------------------------------------------------------------
+# RHEL-08-010741 | home directory group ownership
+# ---------------------------------------------------------------------------
+stig_010741_enabled: true
+# Report-only by default. Re-grouping to the owner's primary group breaks
+# deliberate shared-group arrangements, which the check text allows when the
+# ISSO has documented them.
+stig_010741_fix: false
+
+# ---------------------------------------------------------------------------
+# RHEL-08-020017 | faillock tally persistence
+# ---------------------------------------------------------------------------
+stig_020017_enabled: true
+stig_020017_dir: /var/log/faillock
+
+# ---------------------------------------------------------------------------
+# RHEL-08-020090 | PKI certificate mapping    [GATED]
+# ---------------------------------------------------------------------------
+stig_020090_enabled: false
+stig_020090_certmap: {}
+#   domain: example.mil
+#   rule_name: stig_rule
+#   matchrule: "<SAN>.*EDIPI@mil"
+#   maprule: "(userCertificate;binary={cert!bin})"
+
+# ---------------------------------------------------------------------------
+# RHEL-08-020250 | smart card logon    [GATED]
+# ---------------------------------------------------------------------------
+stig_020250_enabled: false
+
+# ---------------------------------------------------------------------------
+# RHEL-08-020320 | unnecessary accounts    [GATED]
+# ---------------------------------------------------------------------------
+stig_020320_enabled: false
+# Accounts to delete, named explicitly after comparison against the system's
+# authorized-user list. The role never derives this list itself.
+stig_020320_remove_accounts: []
+stig_020320_remove_home: false
+# Never removable by this role, whatever inventory says. Deleting the automation
+# account mid-run ends the run and the ability to repair it.
+stig_020320_protected_accounts:
+  - root
+  - "{{ ansible_user | default('ansible') }}"
+
+# ---------------------------------------------------------------------------
+# RHEL-08-020352 | umask 077 for interactive users
+# ---------------------------------------------------------------------------
+stig_020352_enabled: true
+# Removal is opt-in: an application account may hold a documented exception.
+stig_020352_remove: false
+
+# ---------------------------------------------------------------------------
+# RHEL-08-040030 | PPSM ports, protocols and services    [MANUAL]
+# ---------------------------------------------------------------------------
+# No enable flag. There is no automatable fix; the role always gathers evidence
+# and always reports Open. Closure is a documented human comparison.
+stig_040030_enabled: true
+
+# ---------------------------------------------------------------------------
+# RHEL-08-040137 | fapolicyd application allow listing    [GATED]
+# ---------------------------------------------------------------------------
+stig_040137_enabled: false
+# Separate from _enabled on purpose. Enabling the control stages fapolicyd in
+# permissive mode; this flag is the one that actually starts denying execution,
+# and it should only be set once the allow list has been built and tested.
+stig_040137_enforce: false
+stig_040137_denyall_rule_file: /etc/fapolicyd/rules.d/99-stig-deny-all.rules
+
+# ---------------------------------------------------------------------------
+# RHEL-08-040140 | USBGuard    [GATED]
+# ---------------------------------------------------------------------------
+stig_040140_enabled: false
+# Generate a policy from the devices attached at run time when none exists.
+# Only safe when the host currently has exactly the peripherals it should keep.
+stig_040140_generate_policy: false

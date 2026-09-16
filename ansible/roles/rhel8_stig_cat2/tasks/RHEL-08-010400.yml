@@ -1,0 +1,65 @@
+---
+# RHEL-08-010400 | Certificate status checking must be implemented for MFA
+# (certificate_verification = ocsp_dgst=sha1 in the [sssd] section).
+#
+# Guarded on sssd.conf already existing. Creating an sssd.conf purely to hold
+# this line would produce a host that passes the grep while doing no PKI
+# authentication at all - a compliance record for a control that is not in
+# force. If SSSD is not configured here, the honest answer is Open with a
+# pointer, not a manufactured pass.
+
+- name: RHEL-08-010400 | Record non-applicability when an alternate MFA method is approved
+  ansible.builtin.include_tasks: record.yml
+  vars:
+    _stig_id: RHEL-08-010400
+    _status: Not_Applicable
+    _detail: >-
+      An approved alternate multifactor authentication method is in use
+      ({{ stig_mfa_alternate_ref | default('reference not recorded', true) }}).
+  when: stig_mfa_alternate | bool
+
+- name: RHEL-08-010400 | Configure OCSP certificate status checking
+  when: not (stig_mfa_alternate | bool)
+  block:
+    - name: RHEL-08-010400 | Check for an existing SSSD configuration
+      ansible.builtin.stat:
+        path: /etc/sssd/sssd.conf
+      register: stig_010400_conf
+
+    - name: RHEL-08-010400 | Set certificate_verification in the [sssd] section
+      ansible.builtin.lineinfile:
+        path: /etc/sssd/sssd.conf
+        regexp: '^[[:space:]]*certificate_verification[[:space:]]*='
+        line: "certificate_verification = {{ stig_010400_verification }}"
+        insertafter: '^\[sssd\]'
+        owner: root
+        group: root
+        mode: "0600"
+        create: false
+        backup: "{{ stig_backup | bool }}"
+      register: stig_010400
+      when:
+        - not (stig_audit_only | bool)
+        - stig_010400_conf.stat.exists
+      notify: stig_sssd_restart
+
+    - name: RHEL-08-010400 | Report a host with no SSSD configuration
+      ansible.builtin.debug:
+        msg: >-
+          /etc/sssd/sssd.conf does not exist, so this host is not performing SSSD-based
+          PKI authentication. Writing the setting into a new file would create a
+          compliance record for a control that is not in force. Either configure SSSD
+          for PKI authentication, or record the approved alternate MFA method with the
+          ISSO and set stig_mfa_alternate=true.
+      when: not stig_010400_conf.stat.exists
+
+    - name: RHEL-08-010400 | Record result
+      ansible.builtin.include_tasks: record.yml
+      vars:
+        _stig_id: RHEL-08-010400
+        _status: "{{ stig_010400_conf.stat.exists | ternary('NotAFinding', 'Open') }}"
+        _changed: "{{ stig_010400.changed | default(false) }}"
+        _detail: >-
+          {{ stig_010400_conf.stat.exists
+             | ternary('certificate_verification = ' ~ stig_010400_verification ~ ' in /etc/sssd/sssd.conf.',
+                       'No /etc/sssd/sssd.conf on this host; SSSD PKI authentication is not configured.') }}

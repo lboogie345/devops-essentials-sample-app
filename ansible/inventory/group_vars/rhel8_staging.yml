@@ -12,3 +12,31 @@ stig_040400_logins:
     seuser: staff_u
 # Left off until the __default__ remap has been exercised on a throwaway host.
 stig_040400_set_default_user_u: false
+
+# --- Controls added from the second export --------------------------------
+# Staged one at a time. Each of these can take a host offline in a different
+# way, so they go in separate PRs with their own soak period, not together.
+
+# Reports files needing re-grouping; flip _fix once the report has been read.
+stig_010741_fix: false
+# Reports weak umask statements; flip _remove once app-account exceptions are known.
+stig_020352_remove: false
+
+# fapolicyd: enabling stages it in PERMISSIVE mode. Enforcement is the second
+# flag, set only after the allow list has been built from observed denials.
+stig_040137_enabled: false
+stig_040137_enforce: false
+
+# USBGuard: staging hosts here are VMs with no USB peripherals, so the control
+# reports Not_Applicable on its own. Left off for physical hosts regardless -
+# starting it without a policy costs you the console keyboard.
+stig_040140_enabled: false
+
+# noexec on /home needs a separate filesystem and an fstab edit.
+stig_010590_enabled: false
+
+# PKI/MFA: this tier has no CAC infrastructure, so the four PKI controls are
+# recorded Not_Applicable against the documented alternate method rather than
+# sitting Open forever.
+stig_mfa_alternate: true
+stig_mfa_alternate_ref: "ISSO-2026-014 (password + faillock, staging tier only)"

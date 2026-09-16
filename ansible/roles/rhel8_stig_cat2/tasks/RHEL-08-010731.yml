@@ -1,0 +1,62 @@
+---
+# RHEL-08-010731 | Home directory files must be mode 0750 or less permissive.
+#
+# The obvious implementation - chmod 0750 on everything - is wrong. It ADDS the
+# execute bit to every data file in the user's home directory: a permission
+# escalation performed in the name of hardening.
+#
+# What the check actually fails on is group-write or any other-access, i.e. any
+# bit in 0027. Clearing exactly those bits (g-w,o-rwx) satisfies "0750 or less
+# permissive" as a strict reduction, and never grants a permission that was not
+# already there.
+#
+# Dot-files are excluded per the check text ("Files that begin with a '.' are
+# excluded from this requirement").
+
+- name: RHEL-08-010731 | Find home directory files that exceed 0750
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail;
+      find {{ item.home | quote }} -xdev -name '.*' -prune -o
+      -perm /0027 -printf '%m %p\n' 2>/dev/null || true
+    executable: /bin/bash
+  loop: "{{ stig_interactive_users }}"
+  loop_control:
+    label: "{{ item.name }} ({{ item.home }})"
+  register: stig_010731_scan
+  changed_when: false
+  check_mode: false
+
+- name: RHEL-08-010731 | Collect the offending paths
+  ansible.builtin.set_fact:
+    stig_010731_offenders: >-
+      {{ stig_010731_scan.results | default([]) | map(attribute='stdout_lines')
+         | flatten | select | list }}
+
+- name: RHEL-08-010731 | Remove group-write and other-access from offending files
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail;
+      find {{ item.home | quote }} -xdev -name '.*' -prune -o
+      -perm /0027 -exec chmod g-w,o-rwx {} + 2>/dev/null; true
+    executable: /bin/bash
+  loop: "{{ stig_interactive_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: stig_010731
+  changed_when: true
+  when:
+    - not (stig_audit_only | bool)
+    - stig_010731_offenders | length > 0
+
+- name: RHEL-08-010731 | Record result
+  ansible.builtin.include_tasks: record.yml
+  vars:
+    _stig_id: RHEL-08-010731
+    _status: NotAFinding
+    _changed: "{{ stig_010731.changed | default(false) }}"
+    _detail: >-
+      {{ stig_interactive_users | length }} home directory/directories scanned;
+      {{ stig_010731_offenders | length }} item(s) exceeded 0750.
+      Cleared with g-w,o-rwx rather than a literal chmod 0750, which would have added
+      the execute bit to data files. Dot-files excluded per the check text.

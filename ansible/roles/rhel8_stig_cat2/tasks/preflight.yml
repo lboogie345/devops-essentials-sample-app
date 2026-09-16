@@ -39,6 +39,35 @@
   ansible.builtin.set_fact:
     stig_selinux_enabled: "{{ ansible_facts['selinux']['status'] | default('disabled') == 'enabled' }}"
 
+- name: Preflight | Enumerate local interactive users
+  # Several controls operate on "local interactive user home directories".
+  # The STIG's own definition is UID >= 1000 with a real login shell; deriving
+  # it once keeps four task files from disagreeing about who that is.
+  # awk emits JSON so the result parses without brittle string splitting.
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail;
+      awk -F: '($3>={{ stig_interactive_uid_min }}) && ($7 !~ /(nologin|false|sync|halt|shutdown)$/)
+      {printf "{\"name\":\"%s\",\"home\":\"%s\"}\n", $1, $6}' /etc/passwd || true
+    executable: /bin/bash
+  register: stig_passwd_scan
+  changed_when: false
+  check_mode: false
+
+- name: Preflight | Record the interactive users and their home directories
+  ansible.builtin.set_fact:
+    stig_interactive_users: >-
+      {{ stig_passwd_scan.stdout_lines | default([]) | map('from_json')
+         | rejectattr('name', 'in', stig_home_user_exclusions)
+         | selectattr('home', 'match', '^/')
+         | list }}
+
+- name: Preflight | Report the interactive users the home-directory controls will touch
+  ansible.builtin.debug:
+    msg: >-
+      {{ stig_interactive_users | length }} local interactive user(s):
+      {{ stig_interactive_users | map(attribute='name') | join(', ') | default('none', true) }}
+
 - name: Preflight | Install the SELinux management tooling the gated controls need
   ansible.builtin.dnf:
     name: policycoreutils-python-utils

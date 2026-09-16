@@ -65,6 +65,68 @@
   ansible.builtin.include_tasks: RHEL-08-040400.yml
   tags: [stig, cat2, RHEL-08-040400, V-254520, selinux, gated]
 
+- name: RHEL-08-010090 | PKI certification path to an accepted trust anchor
+  ansible.builtin.include_tasks: RHEL-08-010090.yml
+  tags: [stig, cat2, RHEL-08-010090, V-230229, pki]
+
+- name: RHEL-08-010400 | Certificate status checking for MFA
+  ansible.builtin.include_tasks: RHEL-08-010400.yml
+  tags: [stig, cat2, RHEL-08-010400, V-230274, pki]
+
+- name: RHEL-08-010490 | SSH private host key permissions
+  ansible.builtin.include_tasks: RHEL-08-010490.yml
+  when: stig_010490_enabled | bool
+  tags: [stig, cat2, RHEL-08-010490, V-230287, ssh]
+
+- name: RHEL-08-010590 | noexec on home directory filesystems
+  ansible.builtin.include_tasks: RHEL-08-010590.yml
+  tags: [stig, cat2, RHEL-08-010590, V-230302, filesystem, gated]
+
+- name: RHEL-08-010731 | Home directory file modes
+  ansible.builtin.include_tasks: RHEL-08-010731.yml
+  when: stig_010731_enabled | bool
+  tags: [stig, cat2, RHEL-08-010731, V-244531, homedirs]
+
+- name: RHEL-08-010741 | Home directory group ownership
+  ansible.builtin.include_tasks: RHEL-08-010741.yml
+  when: stig_010741_enabled | bool
+  tags: [stig, cat2, RHEL-08-010741, V-244532, homedirs]
+
+- name: RHEL-08-020017 | Account lockout persistence
+  ansible.builtin.include_tasks: RHEL-08-020017.yml
+  when: stig_020017_enabled | bool
+  tags: [stig, cat2, RHEL-08-020017, V-230339, pam]
+
+- name: RHEL-08-020090 | PKI certificate-to-account mapping
+  ansible.builtin.include_tasks: RHEL-08-020090.yml
+  tags: [stig, cat2, RHEL-08-020090, V-230355, pki, gated]
+
+- name: RHEL-08-020250 | Smart card logon for MFA
+  ansible.builtin.include_tasks: RHEL-08-020250.yml
+  tags: [stig, cat2, RHEL-08-020250, V-230372, pki, pam, gated]
+
+- name: RHEL-08-020320 | Unnecessary accounts
+  ansible.builtin.include_tasks: RHEL-08-020320.yml
+  tags: [stig, cat2, RHEL-08-020320, V-230379, accounts, gated]
+
+- name: RHEL-08-020352 | umask 077 for interactive users
+  ansible.builtin.include_tasks: RHEL-08-020352.yml
+  when: stig_020352_enabled | bool
+  tags: [stig, cat2, RHEL-08-020352, V-230384, homedirs]
+
+- name: RHEL-08-040030 | PPSM ports, protocols and services
+  ansible.builtin.include_tasks: RHEL-08-040030.yml
+  when: stig_040030_enabled | bool
+  tags: [stig, cat2, RHEL-08-040030, V-230500, firewall, manual]
+
+- name: RHEL-08-040137 | fapolicyd application allow listing
+  ansible.builtin.include_tasks: RHEL-08-040137.yml
+  tags: [stig, cat2, RHEL-08-040137, V-244546, fapolicyd, gated]
+
+- name: RHEL-08-040140 | Block unauthorized peripherals
+  ansible.builtin.include_tasks: RHEL-08-040140.yml
+  tags: [stig, cat2, RHEL-08-040140, V-230524, usbguard, gated]
+
 - name: Write compliance evidence artifact
   ansible.builtin.include_tasks: evidence.yml
   when: stig_write_evidence | bool

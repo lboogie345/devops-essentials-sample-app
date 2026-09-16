@@ -14,11 +14,10 @@
 #   assisted   - the role converges what it safely can and reports the rest for a human
 benchmark:
   product: Red Hat Enterprise Linux 8
-  version: "2"
-  release: "8"
-  benchmark_date: "2026-07-01"
+  version: '2'
+  release: '8'
+  benchmark_date: '2026-07-01'
   classification: UNCLASSIFIED
-
 controls:
   - stig_id: RHEL-08-010019
     group_id: V-256973
@@ -26,222 +25,520 @@ controls:
     severity: CAT II
     srg: SRG-OS-000366-GPOS-00153
     title: RHEL 8 must ensure cryptographic verification of vendor software packages.
-    cci: [CCI-001749, CCI-003992]
-    nist: ["CM-5 (3)", "CM-14"]
+    cci:
+      - CCI-001749
+      - CCI-003992
+    nist:
+      - CM-5 (3)
+      - CM-14
     remediation: assisted
     risk: low
     reboot_required: false
     notes: >-
-      Keys cannot be manufactured by automation. The role restores the vendor key
-      file from the redhat-release package, imports it, and asserts the fingerprints
-      against hard-coded vendor values. A host with no key file and no package cache
-      is reported for manual media-based remediation.
-
+      Keys cannot be manufactured by automation. The role restores the vendor key file from
+      the redhat-release package, imports it, and asserts the fingerprints against hard-coded
+      vendor values. A host with no key file and no package cache is reported for manual
+      media-based remediation.
+  - stig_id: RHEL-08-010090
+    group_id: V-230229
+    rule_id: SV-230229r1017048
+    severity: CAT II
+    srg: SRG-OS-000066-GPOS-00034
+    title: >-
+      RHEL 8, for PKI-based authentication, must validate certificates by constructing a
+      certification path (which includes status information) to an accepted trust anchor.
+    cci:
+      - CCI-000185
+    nist:
+      - IA-5 (2)
+      - IA-5 (2) (a)
+      - IA-5 (2) (b) (1)
+    remediation: assisted
+    risk: medium
+    reboot_required: false
+    applicability: Not applicable where an approved alternate MFA method is used
+    notes: >-
+      Automation must not fetch a trust anchor over the network. The role verifies the DoD
+      root CA is present at /etc/sssd/pki/sssd_auth_ca_db.pem, issued by DoD and currently
+      valid, and deploys it only from an organization-controlled source when one is configured.
   - stig_id: RHEL-08-010358
     group_id: V-256974
     rule_id: SV-256974r1069321
     severity: CAT II
     srg: SRG-OS-000363-GPOS-00150
-    title: RHEL 8 must be configured to allow sending email notifications of unauthorized configuration changes to designated personnel.
-    cci: [CCI-001744]
-    nist: ["CM-3 (5)"]
+    title: >-
+      RHEL 8 must be configured to allow sending email notifications of unauthorized configuration
+      changes to designated personnel.
+    cci:
+      - CCI-001744
+    nist:
+      - CM-3 (5)
     remediation: automated
     risk: low
     reboot_required: false
     notes: mailx or s-nail satisfies the check; the role accepts either.
-
   - stig_id: RHEL-08-010379
     group_id: V-251711
     rule_id: SV-251711r1017365
     severity: CAT II
     srg: SRG-OS-000480-GPOS-00227
     title: RHEL 8 must specify the default "include" directory for the /etc/sudoers file.
-    cci: [CCI-000366]
-    nist: ["CM-6 b"]
+    cci:
+      - CCI-000366
+    nist:
+      - CM-6 b
     remediation: assisted
     risk: high
     reboot_required: false
     notes: >-
-      Enforced through visudo validation. Nested includes found under /etc/sudoers.d
-      are reported, never deleted automatically - removing one can revoke the
-      privilege path the automation itself depends on.
-
+      Enforced through visudo validation. Nested includes found under /etc/sudoers.d are
+      reported, never deleted automatically - removing one can revoke the privilege path
+      the automation itself depends on.
   - stig_id: RHEL-08-010385
     group_id: V-251712
     rule_id: SV-251712r1050789
     severity: CAT II
     srg: SRG-OS-000373-GPOS-00156
-    title: The RHEL 8 operating system must not be configured to bypass password requirements for privilege escalation.
-    cci: [CCI-002038, CCI-004895]
-    nist: ["IA-11", "SC-11 b"]
+    title: >-
+      The RHEL 8 operating system must not be configured to bypass password requirements
+      for privilege escalation.
+    cci:
+      - CCI-002038
+      - CCI-004895
+    nist:
+      - IA-11
+      - SC-11 b
     remediation: automated
     risk: medium
     reboot_required: false
     notes: >-
-      Removing pam_succeed_if from /etc/pam.d/sudo makes sudo prompt for a password
-      where it previously did not. Confirm no automation authenticates through a
-      passwordless sudo that relies on this bypass before enabling.
-
+      Removing pam_succeed_if from /etc/pam.d/sudo makes sudo prompt for a password where
+      it previously did not. Confirm no automation authenticates through a passwordless
+      sudo that relies on this bypass before enabling.
+  - stig_id: RHEL-08-010400
+    group_id: V-230274
+    rule_id: SV-230274r1017089
+    severity: CAT II
+    srg: SRG-OS-000375-GPOS-00160
+    title: RHEL 8 must implement certificate status checking for multifactor authentication.
+    cci:
+      - CCI-001948
+      - CCI-004046
+    nist:
+      - IA-2 (11)
+      - IA-2 (6) (a)
+    remediation: assisted
+    risk: medium
+    reboot_required: false
+    applicability: Not applicable where an approved alternate MFA method is used
+    notes: >-
+      Only meaningful where SSSD performs PKI authentication. Writing certificate_verification
+      into an sssd.conf on a host that does not do PKI auth manufactures a compliance record
+      for a control that is not in force, so the role acts only when sssd.conf already exists.
   - stig_id: RHEL-08-010455
     group_id: V-272484
     rule_id: SV-272484r1134875
     severity: CAT II
     srg: SRG-OS-000445-GPOS-00199
-    title: RHEL 8 must elevate the SELinux context when an administrator calls the sudo command.
-    cci: [CCI-002235]
-    nist: ["AC-6 (10)"]
+    title: RHEL 8 must elevate the SELinux context when an administrator calls the sudo
+      command.
+    cci:
+      - CCI-002235
+    nist:
+      - AC-6 (10)
     remediation: gated
     risk: high
     reboot_required: false
     notes: >-
-      Requires an org-defined admin group. Off by default: a wrong sudoers entry
-      locks every administrator out of privilege escalation at once.
-
+      Requires an org-defined admin group. Off by default: a wrong sudoers entry locks every
+      administrator out of privilege escalation at once.
+  - stig_id: RHEL-08-010490
+    group_id: V-230287
+    rule_id: SV-230287r1208746
+    severity: CAT II
+    srg: SRG-OS-000480-GPOS-00227
+    title: The RHEL 8 SSH private host key files must have mode 0600 or less permissive.
+    cci:
+      - CCI-000366
+    nist:
+      - CM-6 b
+    remediation: automated
+    risk: low
+    reboot_required: false
+    notes: >-
+      Applies to private host keys only. The matching .pub files must stay world-readable;
+      tightening them breaks host key verification for every client.
+  - stig_id: RHEL-08-010590
+    group_id: V-230302
+    rule_id: SV-230302r1017112
+    severity: CAT II
+    srg: SRG-OS-000480-GPOS-00227
+    title: >-
+      RHEL 8 must prevent code from being executed on file systems that contain user home
+      directories.
+    cci:
+      - CCI-000366
+    nist:
+      - CM-6 b
+    remediation: gated
+    risk: high
+    reboot_required: conditional
+    notes: >-
+      If home directories sit on / the check text makes this an automatic finding that cannot
+      be remediated without repartitioning. A bad /etc/fstab edit renders a host unbootable,
+      so the role validates the entry and remounts only when explicitly opted in.
+  - stig_id: RHEL-08-010731
+    group_id: V-244531
+    rule_id: SV-244531r1017338
+    severity: CAT II
+    srg: SRG-OS-000480-GPOS-00227
+    title: >-
+      All RHEL 8 local interactive user home directory files must have mode 0750 or less
+      permissive.
+    cci:
+      - CCI-000366
+    nist:
+      - CM-6 b
+    remediation: assisted
+    risk: medium
+    reboot_required: false
+    notes: >-
+      Forcing a literal 0750 would ADD the execute bit to data files. The role instead removes
+      group-write and all other-access (g-w,o-rwx), which satisfies '0750 or less permissive'
+      as a strict reduction. Dot-files are excluded per the check text.
+  - stig_id: RHEL-08-010741
+    group_id: V-244532
+    rule_id: SV-244532r1101906
+    severity: CAT II
+    srg: SRG-OS-000480-GPOS-00227
+    title: >-
+      RHEL 8 must be configured so that all files and directories contained in local interactive
+      user home directories are group-owned by a group of which the home directory owner
+      is a member.
+    cci:
+      - CCI-000366
+    nist:
+      - CM-6 b
+    remediation: assisted
+    risk: medium
+    reboot_required: false
+    notes: >-
+      Group ownership outside the owner's groups can be an ISSO-documented arrangement,
+      so the role reports by default. Re-grouping to the owner's primary group is opt-in.
+  - stig_id: RHEL-08-020017
+    group_id: V-230339
+    rule_id: SV-230339r1017151
+    severity: CAT II
+    srg: SRG-OS-000021-GPOS-00005
+    title: RHEL 8 must ensure account lockouts persist.
+    cci:
+      - CCI-000044
+    nist:
+      - AC-7 a
+    remediation: automated
+    risk: low
+    reboot_required: false
+    applicability: RHEL >= 8.2
+    notes: >-
+      The default pam_faillock tally directory is cleared on boot, so lockouts do not survive
+      a reboot. A non-default dir is the whole point of the control.
   - stig_id: RHEL-08-020035
     group_id: V-257258
     rule_id: SV-257258r1069328
     severity: CAT II
     srg: SRG-OS-000163-GPOS-00072
     title: RHEL 8.7 and higher must terminate idle user sessions.
-    cci: [CCI-001133]
-    nist: ["SC-10"]
+    cci:
+      - CCI-001133
+    nist:
+      - SC-10
     remediation: automated
     risk: medium
     reboot_required: false
     applicability: RHEL >= 8.7
     notes: >-
-      Not applicable below 8.7, and not applicable on cloud-hosted systems where
-      ClientAliveInterval (V-244525) is configured. Both exclusions are wired to
-      variables so the skip is recorded as Not_Applicable, not as a silent pass.
-
+      Not applicable below 8.7, and not applicable on cloud-hosted systems where ClientAliveInterval
+      (V-244525) is configured. Both exclusions are wired to variables so the skip is recorded
+      as Not_Applicable, not as a silent pass.
+  - stig_id: RHEL-08-020090
+    group_id: V-230355
+    rule_id: SV-230355r1017168
+    severity: CAT II
+    srg: SRG-OS-000068-GPOS-00036
+    title: >-
+      RHEL 8 must map the authenticated identity to the user or group account for PKI-based
+      authentication.
+    cci:
+      - CCI-000187
+    nist:
+      - IA-5 (2)
+      - IA-5 (2) (c)
+      - IA-5 (2) (a) (2)
+    remediation: gated
+    risk: medium
+    reboot_required: false
+    applicability: Not applicable where an approved alternate MFA method is used
+    notes: >-
+      matchrule, maprule and the domain name are organizational PKI data. There is no safe
+      default; a wrong certmap silently maps certificates to the wrong accounts.
   - stig_id: RHEL-08-020101
     group_id: V-251713
     rule_id: SV-251713r1017366
     severity: CAT II
     srg: SRG-OS-000480-GPOS-00227
-    title: RHEL 8 must ensure the password complexity module is enabled in the system-auth file.
-    cci: [CCI-000366]
-    nist: ["CM-6 b"]
+    title: RHEL 8 must ensure the password complexity module is enabled in the system-auth
+      file.
+    cci:
+      - CCI-000366
+    nist:
+      - CM-6 b
     remediation: assisted
     risk: high
     reboot_required: false
     notes: >-
-      /etc/pam.d/system-auth is owned by authselect. Editing it in place is reverted
-      by the next authselect apply and breaks `authselect check`. The role edits the
-      custom authselect profile instead and re-applies it.
-
+      /etc/pam.d/system-auth is owned by authselect. Editing it in place is reverted by
+      the next authselect apply and breaks `authselect check`. The role edits the custom
+      authselect profile instead and re-applies it.
   - stig_id: RHEL-08-020104
     group_id: V-251716
     rule_id: SV-251716r1069329
     severity: CAT II
     srg: SRG-OS-000480-GPOS-00227
-    title: RHEL 8 systems, version 8.4 and above, must ensure the password complexity module is configured for three retries or less.
-    cci: [CCI-000366]
-    nist: ["CM-6 b"]
+    title: >-
+      RHEL 8 systems, version 8.4 and above, must ensure the password complexity module
+      is configured for three retries or less.
+    cci:
+      - CCI-000366
+    nist:
+      - CM-6 b
     remediation: automated
     risk: low
     reboot_required: false
     applicability: RHEL >= 8.4
-
+  - stig_id: RHEL-08-020250
+    group_id: V-230372
+    rule_id: SV-230372r1017184
+    severity: CAT II
+    srg: SRG-OS-000105-GPOS-00052
+    title: >-
+      RHEL 8 must implement smart card logon for multifactor authentication for access to
+      interactive accounts.
+    cci:
+      - CCI-000765
+    nist:
+      - IA-2 (1)
+    remediation: gated
+    risk: high
+    reboot_required: false
+    applicability: Not applicable where an approved alternate MFA method is used
+    notes: >-
+      Enforced through authselect (with-smartcard), never by editing the generated PAM files.
+      Enabling it without working CAC infrastructure locks every interactive login out of
+      the host at once.
+  - stig_id: RHEL-08-020320
+    group_id: V-230379
+    rule_id: SV-230379r1017190
+    severity: CAT II
+    srg: SRG-OS-000480-GPOS-00227
+    title: RHEL 8 must not have unnecessary accounts.
+    cci:
+      - CCI-000366
+    nist:
+      - CM-6 b
+    remediation: gated
+    risk: high
+    reboot_required: false
+    notes: >-
+      Requires the system's authorized-user list, which automation cannot hold. The role
+      never runs userdel on its own initiative; it reports interactive accounts for comparison
+      against that list.
+  - stig_id: RHEL-08-020352
+    group_id: V-230384
+    rule_id: SV-230384r1017193
+    severity: CAT II
+    srg: SRG-OS-000480-GPOS-00228
+    title: RHEL 8 must set the umask value to 077 for all local interactive user accounts.
+    cci:
+      - CCI-000366
+    nist:
+      - CM-6 b
+    remediation: assisted
+    risk: medium
+    reboot_required: false
+    notes: >-
+      The fix is removal of less-restrictive umask statements from user initialization files,
+      which leaves the system default in force. Application accounts may carry a documented
+      exception, so removal is opt-in.
   - stig_id: RHEL-08-020360
     group_id: V-279929
     rule_id: SV-279929r1156340
     severity: CAT II
     srg: SRG-OS-000163-GPOS-00072
-    title: RHEL 8 must automatically exit interactive command shell user sessions after 10 minutes of inactivity.
-    cci: [CCI-001133]
-    nist: ["SC-10"]
+    title: >-
+      RHEL 8 must automatically exit interactive command shell user sessions after 10 minutes
+      of inactivity.
+    cci:
+      - CCI-001133
+    nist:
+      - SC-10
     remediation: automated
     risk: medium
     reboot_required: false
-
   - stig_id: RHEL-08-030655
     group_id: V-274877
     rule_id: SV-274877r1155381
     severity: CAT II
     srg: SRG-OS-000471-GPOS-00215
-    title: RHEL 8 must audit any script or executable called by cron as root or by any privileged user.
-    cci: [CCI-000172]
-    nist: ["AU-12 c"]
+    title: >-
+      RHEL 8 must audit any script or executable called by cron as root or by any privileged
+      user.
+    cci:
+      - CCI-000172
+    nist:
+      - AU-12 c
     remediation: automated
     risk: low
     reboot_required: conditional
     notes: >-
-      If auditd is in immutable mode (-e 2) the new rules only take effect after a
-      reboot. The role detects this and reports reboot_required rather than claiming
-      compliance the running kernel does not have.
-
+      If auditd is in immutable mode (-e 2) the new rules only take effect after a reboot.
+      The role detects this and reports reboot_required rather than claiming compliance
+      the running kernel does not have.
+  - stig_id: RHEL-08-040030
+    group_id: V-230500
+    rule_id: SV-230500r1101900
+    severity: CAT II
+    srg: SRG-OS-000096-GPOS-00050
+    title: >-
+      RHEL 8 must be configured to prohibit or restrict the use of functions, ports, protocols,
+      and/or services, as defined in the Ports, Protocols, and Services Management (PPSM)
+      Category Assignments List (CAL) and vulnerability assessments.
+    cci:
+      - CCI-000382
+    nist:
+      - CM-7
+      - CM-7 b
+    remediation: manual
+    risk: medium
+    reboot_required: false
+    notes: >-
+      The fix text contains no command. Compliance is defined by the site PPSM CLSA and
+      the PPSM CAL, which are documents, not settings. The role captures firewalld zones,
+      services and ports as evidence for the human comparison and always reports Open.
+  - stig_id: RHEL-08-040137
+    group_id: V-244546
+    rule_id: SV-244546r1208752
+    severity: CAT II
+    srg: SRG-OS-000368-GPOS-00154
+    title: >-
+      The RHEL 8 fapolicy module must be configured to employ a deny-all, permit-by-exception
+      policy to allow the execution of authorized software programs.
+    cci:
+      - CCI-001764
+    nist:
+      - CM-7 (2)
+    remediation: gated
+    risk: high
+    reboot_required: false
+    notes: >-
+      The discussion warns that improper configuration renders the system nonfunctional,
+      and that fapolicyd is not namespace-aware and breaks containers. The role will not
+      set permissive=0 without an explicit opt-in confirming an allow list has been built
+      and tested.
+  - stig_id: RHEL-08-040140
+    group_id: V-230524
+    rule_id: SV-230524r1155418
+    severity: CAT II
+    srg: SRG-OS-000378-GPOS-00163
+    title: RHEL 8 must block unauthorized peripherals before establishing a connection.
+    cci:
+      - CCI-001958
+    nist:
+      - IA-3
+    remediation: gated
+    risk: high
+    reboot_required: false
+    notes: >-
+      Starting usbguard without a generated policy immediately blocks USB input devices,
+      including the keyboard on a physical console. Virtual machines with no USB peripherals
+      attached are Not_Applicable per the check text.
   - stig_id: RHEL-08-040221
     group_id: V-284948
     rule_id: SV-284948r1208757
     severity: CAT II
     srg: SRG-OS-000420-GPOS-00186
     title: RHEL 8 must log IPv4 packets with impossible addresses.
-    cci: [CCI-002386]
-    nist: ["SC-5"]
+    cci:
+      - CCI-002386
+    nist:
+      - SC-5
     remediation: automated
     risk: low
     reboot_required: false
-
   - stig_id: RHEL-08-040222
     group_id: V-284949
     rule_id: SV-284949r1208759
     severity: CAT II
     srg: SRG-OS-000420-GPOS-00186
     title: RHEL 8 must log IPv4 packets with impossible addresses by default.
-    cci: [CCI-002386]
-    nist: ["SC-5"]
+    cci:
+      - CCI-002386
+    nist:
+      - SC-5
     remediation: automated
     risk: low
     reboot_required: false
-
   - stig_id: RHEL-08-040287
     group_id: V-284947
     rule_id: SV-284947r1210519
     severity: CAT II
     srg: SRG-OS-000420-GPOS-00186
-    title: RHEL 8 must use a reverse-path filter for IPv4 network traffic, when possible, by default.
-    cci: [CCI-002385]
-    nist: ["SC-5", "SC-5 a"]
+    title: RHEL 8 must use a reverse-path filter for IPv4 network traffic, when possible,
+      by default.
+    cci:
+      - CCI-002385
+    nist:
+      - SC-5
+      - SC-5 a
     remediation: automated
     risk: medium
     reboot_required: false
     notes: >-
-      rp_filter must not be strict on asymmetric-routing hosts. The role sets the
-      `default` scope only and leaves existing interfaces alone unless explicitly
-      told otherwise.
-
+      rp_filter must not be strict on asymmetric-routing hosts. The role sets the `default`
+      scope only and leaves existing interfaces alone unless explicitly told otherwise.
   - stig_id: RHEL-08-040321
     group_id: V-251718
     rule_id: SV-251718r1017371
     severity: CAT II
     srg: SRG-OS-000480-GPOS-00227
-    title: The graphical display manager must not be the default target on RHEL 8 unless approved.
-    cci: [CCI-000366]
-    nist: ["CM-6 b"]
+    title: The graphical display manager must not be the default target on RHEL 8 unless
+      approved.
+    cci:
+      - CCI-000366
+    nist:
+      - CM-6 b
     remediation: gated
     risk: medium
     reboot_required: true
     notes: >-
-      Hosts with an ISSO-documented GUI requirement are exempted by inventory
-      variable, which produces a Not_Applicable with the approval reference
-      recorded in the evidence artifact.
-
+      Hosts with an ISSO-documented GUI requirement are exempted by inventory variable,
+      which produces a Not_Applicable with the approval reference recorded in the evidence
+      artifact.
   - stig_id: RHEL-08-040400
     group_id: V-254520
     rule_id: SV-254520r1069331
     severity: CAT II
     srg: SRG-OS-000324-GPOS-00125
     title: >-
-      RHEL 8 must prevent nonprivileged users from executing privileged functions,
-      including disabling, circumventing, or altering implemented security
-      safeguards/countermeasures.
-    cci: [CCI-002235]
-    nist: ["AC-6 (10)"]
+      RHEL 8 must prevent nonprivileged users from executing privileged functions, including
+      disabling, circumventing, or altering implemented security safeguards/countermeasures.
+    cci:
+      - CCI-002235
+    nist:
+      - AC-6 (10)
     remediation: gated
     risk: high
     reboot_required: false
     notes: >-
-      SELinux login mappings are per-account org data, not a setting. Off by default.
-      Mapping an admin to sysadm_u blocks their SSH login unless ssh_sysadm_login is
-      set, which itself needs an ISSO-documented operational requirement.
+      SELinux login mappings are per-account org data, not a setting. Off by default. Mapping
+      an admin to sysadm_u blocks their SSH login unless ssh_sysadm_login is set, which
+      itself needs an ISSO-documented operational requirement.

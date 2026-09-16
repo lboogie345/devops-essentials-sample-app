@@ -8,6 +8,11 @@ The repository also carries a DISA STIG remediation baseline for Red Hat
 Enterprise Linux 8 (V2R8, CAT II): an Ansible role, a compliance reporter, and
 the GitHub workflows that gate and evidence its use.
 
+**29 controls implemented** of the benchmark's 314 CAT II rules. Adding more is
+a matter of dropping an export into `ansible/controls/disa-exports/` and writing
+a task file per control; until one exists, the control is reported as a coverage
+gap and CI fails rather than quietly omitting it.
+
 **Start here:** [`docs/STIG-CAT-II-Remediation.md`](docs/STIG-CAT-II-Remediation.md)
 — the approach, the traps, and the rollout sequence.
 
@@ -18,8 +23,8 @@ with the task file that enforces each. Regenerate with
 
 ```
 ansible/
-  controls/rhel8_cat2_controls.yml   15 CAT II controls with CCI/NIST mappings
-  controls/disa-exports/             the DISA source the manifest derives from
+  controls/rhel8_cat2_controls.yml   29 CAT II controls with CCI/NIST mappings
+  controls/disa-exports/             the DISA sources; add a file, never edit one
   remediate.yml                      converge a tier
   audit.yml                          read-only; non-zero exit on open findings
   roles/rhel8_stig_cat2/             one task file per STIG ID

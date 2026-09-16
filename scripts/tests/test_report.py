@@ -46,7 +46,12 @@ def controls() -> dict[str, report.Control]:
 
 
 def test_manifest_loads_every_control(controls):
-    assert len(controls) == 15
+    # Grows as exports are added; the point is that every export control is present.
+    from scripts.stig import parse_disa_export as disa
+
+    exported = {c["stig_id"] for c in disa.parse_exports([MANIFEST.parent / "disa-exports"])}
+    assert set(controls) == exported
+    assert len(controls) >= 29
     assert "RHEL-08-040287" in controls
     assert controls["RHEL-08-040287"].nist  # NIST mapping is what the POA&M cites
 
@@ -95,14 +100,14 @@ def test_control_absent_from_evidence_is_not_reviewed_not_passed(tmp_path, contr
     assert matrix["h1"]["RHEL-08-040222"].status == report.STATUS_UNKNOWN
     counts = report.tally(matrix)
     assert counts[report.STATUS_PASS] == 1
-    assert counts[report.STATUS_UNKNOWN] == 14
+    assert counts[report.STATUS_UNKNOWN] == len(controls) - 1
 
 
 def test_not_reviewed_gates_the_pipeline(tmp_path, controls):
     path = write_evidence(tmp_path, "h1", [])
     matrix = report.reconcile([report.HostEvidence.from_file(path)], controls)
     findings = report.gating_findings(matrix, waived=set())
-    assert len(findings) == 15
+    assert len(findings) == len(controls)
 
 
 def test_not_applicable_does_not_gate(tmp_path, controls):
@@ -189,7 +194,7 @@ def test_junit_marks_open_as_failure_and_na_as_skipped(tmp_path, controls):
     suite = ET.parse(out).getroot().find("testsuite")
     assert suite.get("failures") == "1"
     assert suite.get("skipped") == "1"
-    assert suite.get("tests") == "15"
+    assert suite.get("tests") == str(len(controls))
 
 
 def test_markdown_surfaces_pending_reboots(tmp_path, controls):

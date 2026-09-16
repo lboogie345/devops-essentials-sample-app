@@ -1,0 +1,83 @@
+---
+# RHEL-08-010741 | Home directory files must be group-owned by a group the
+# home directory's owner belongs to.
+#
+# The requirement is any group the user is a member of, not the user's private
+# group: a file owned by group "sa" is compliant when the user is in "sa". The
+# check text also allows ISSO-documented exceptions, so this reports by default
+# and re-groups only on request - a blind chgrp breaks shared-group workflows.
+#
+# Filenames containing a newline are not handled; they would also defeat the
+# STIG's own `ls -lLR` check, and are reported rather than silently skipped.
+
+- name: RHEL-08-010741 | Find files group-owned outside the owner's groups
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      user={{ item.name | quote }}
+      home={{ item.home | quote }}
+      groups=$(id -nG "$user" 2>/dev/null) || exit 0
+      [ -d "$home" ] || exit 0
+      pattern="^($(printf '%s' "$groups" | tr ' ' '|'))\t"
+      find "$home" -xdev -printf '%g\t%p\n' 2>/dev/null | grep -vE "$pattern" || true
+    executable: /bin/bash
+  loop: "{{ stig_interactive_users }}"
+  loop_control:
+    label: "{{ item.name }} ({{ item.home }})"
+  register: stig_010741_scan
+  changed_when: false
+  check_mode: false
+
+- name: RHEL-08-010741 | Collect the offending paths
+  ansible.builtin.set_fact:
+    stig_010741_offenders: >-
+      {{ stig_010741_scan.results | default([]) | map(attribute='stdout_lines')
+         | flatten | select | list }}
+
+- name: RHEL-08-010741 | Re-group offending files to the owner's primary group
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      user={{ item.name | quote }}
+      home={{ item.home | quote }}
+      groups=$(id -nG "$user" 2>/dev/null) || exit 0
+      primary=$(id -gn "$user")
+      [ -d "$home" ] || exit 0
+      pattern="^($(printf '%s' "$groups" | tr ' ' '|'))\t"
+      find "$home" -xdev -printf '%g\t%p\0' 2>/dev/null \
+        | tr '\0' '\n' | grep -vE "$pattern" | cut -f2- \
+        | tr '\n' '\0' | xargs -0 -r chgrp "$primary"
+    executable: /bin/bash
+  loop: "{{ stig_interactive_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: stig_010741
+  changed_when: true
+  when:
+    - not (stig_audit_only | bool)
+    - stig_010741_fix | bool
+    - stig_010741_offenders | length > 0
+
+- name: RHEL-08-010741 | Report files left for ISSO review
+  ansible.builtin.debug:
+    msg: >-
+      Files group-owned outside their owner's groups. Each is either a finding or
+      an ISSO-documented arrangement, so set stig_010741_fix=true only after review:
+      {{ stig_010741_offenders }}
+  when:
+    - stig_010741_offenders | length > 0
+    - not (stig_010741_fix | bool)
+
+- name: RHEL-08-010741 | Record result
+  ansible.builtin.include_tasks: record.yml
+  vars:
+    _stig_id: RHEL-08-010741
+    _status: >-
+      {{ ((stig_010741_offenders | length > 0) and not (stig_010741_fix | bool))
+         | ternary('Open', 'NotAFinding') }}
+    _changed: "{{ stig_010741.changed | default(false) }}"
+    _detail: >-
+      {{ stig_010741_offenders | length }} file(s) group-owned outside the owner's groups.
+      {{ ((stig_010741_offenders | length > 0) and not (stig_010741_fix | bool))
+         | ternary('Reported for ISSO review; not re-grouped automatically.',
+                   'Re-grouped to the owner primary group.') }}

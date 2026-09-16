@@ -1,7 +1,11 @@
 # Mitigating RHEL 8 CAT II findings with Ansible and GitHub
 
-Fifteen CAT II findings from the RHEL 8 STIG V2R8 export, how each one is
+Twenty-nine CAT II findings from the RHEL 8 STIG V2R8 exports, how each one is
 remediated, and what the pipeline around it has to do so the result holds.
+
+The full benchmark carries **314 CAT II rules**. Exports arrive here piecemeal,
+so everything below is built to absorb a new one by dropping a file into
+`ansible/controls/disa-exports/` - see [section 8](#8-adding-the-next-export).
 
 The short version of the approach: **the STIG is the requirement, Ansible is the
 enforcement, Git is the record, and GitHub is the control.** Each of those is
@@ -67,8 +71,31 @@ input, because a wrong value causes an outage or an access loss.
 | `RHEL-08-020101` | `pam_pwquality.so` in `system-auth` | custom **authselect** profile | See below. This is the one most remediation scripts get wrong. |
 | `RHEL-08-010385` | no `pam_succeed_if` in `/etc/pam.d/sudo` | `lineinfile state=absent` | Removing the bypass makes sudo start prompting for a password. Any automation that escalated through it breaks at that moment. |
 | `RHEL-08-010379` | only `#includedir /etc/sudoers.d` | `lineinfile` + `visudo -cf` validation | Nested includes are **reported, not deleted**. One of them may be the file granting the automation its own sudo rights. |
+| `RHEL-08-010490` | SSH private host keys mode 0600 | `find`, then `file` mode | The glob must exclude `*.pub`. Tightening the public keys breaks host key verification for every client. |
+| `RHEL-08-020017` | faillock tally persists a reboot | `dir =` in `faillock.conf` | The default tally lives under `/run` and is wiped at boot, so an attacker just waits for a reboot. The role refuses a `/run` path. |
+| `RHEL-08-010731` | Home dir files mode 0750 or less | `chmod g-w,o-rwx` | A literal `chmod 0750` **adds** the execute bit to data files - a privilege escalation performed in the name of hardening. Clearing `0027` is a strict reduction. |
+| `RHEL-08-010741` | Home dir files group-owned by an owner's group | scan + optional `chgrp` | Any group the user belongs to is compliant, not just the private group. ISSO-documented sharing exists, so this reports by default. |
+| `RHEL-08-020352` | umask 077 for interactive users | scan + optional removal | "Less restrictive than 077" is a bitmask test, not a string compare. Implemented in POSIX awk on purpose: gawk's `and()`/`strtonum()` abort under mawk/busybox, and the scan would then find nothing and report compliant. |
+| `RHEL-08-010590` | `noexec` on home filesystems | `mount` module, **gated** | If homes are on `/`, the check text makes it an automatic finding that configuration cannot fix. A bad `/etc/fstab` leaves a host unbootable. |
+| `RHEL-08-020320` | No unnecessary accounts | enumerate, **gated** | The role never runs `userdel` on its own. "Unnecessary" is defined by a document automation does not hold; deleting accounts it cannot authorize is a DoS with a compliance justification. |
+| `RHEL-08-040030` | Ports/protocols match the PPSM CAL | evidence only, **manual** | The fix text contains no command. Closing a port the CLSA authorizes breaks a mission service; opening one it forbids is a new finding. Always reports Open. |
+| `RHEL-08-040137` | fapolicyd deny-all allow listing | staged, **gated** | The STIG's own discussion: "Improper configuration may render the system nonfunctional." Not namespace-aware, so it breaks containers. Enforcement is a *second* flag beyond enabling the control. |
+| `RHEL-08-040140` | USBGuard blocks peripherals | policy + service, **gated** | Starting usbguard with no policy "will immediately prevent any access over a usb device such as a keyboard" - a console lockout. VMs with no USB devices are detected as Not_Applicable. |
+| `RHEL-08-020250` | Smart card logon | authselect `with-smartcard`, **gated** | Same authselect trap as `RHEL-08-020101`. Enabling it without working CAC infrastructure removes interactive access to the host. |
+| `RHEL-08-020090` | PKI certificate-to-account mapping | `certmap`, **gated** | A wrong certmap does not fail loudly; it maps certificates to the *wrong* accounts. No default is safe. |
+| `RHEL-08-010400` | Certificate status checking (OCSP) | `sssd.conf`, guarded | Guarded on `sssd.conf` already existing. Creating one just to hold the line yields a host that passes the grep while doing no PKI auth - a compliance record for a control that is not in force. |
+| `RHEL-08-010090` | PKI path to a DoD trust anchor | verify, deploy from vetted source | The fix text says fetch from cyber.mil. Automation must **not**: pulling a trust anchor over the network is the attack this control prevents. |
 
-### The authselect trap (`RHEL-08-020101`)
+### A note on the four PKI/MFA controls
+
+`RHEL-08-010090`, `-010400`, `-020090` and `-020250` all carry the same escape
+in their check text: *"If the System Administrator demonstrates the use of an
+approved alternate multifactor authentication method, this requirement is not
+applicable."* Setting `stig_mfa_alternate: true` with a reference records all
+four as Not_Applicable with that reference attached, instead of leaving four
+permanent Open findings nobody can close.
+
+### The authselect trap (`RHEL-08-020101`, `RHEL-08-020250`)
 
 On RHEL 8, `/etc/pam.d/system-auth` is **generated**. Editing it with `lineinfile`
 appears to work — the grep in the check text passes — and then:
@@ -89,6 +116,8 @@ authselect apply-changes -b
 
 The role does exactly this, preserving the features already selected, and falls
 back to a direct edit only when authselect is genuinely not in use.
+`RHEL-08-020250` (smart card logon) goes through the same mechanism via
+`authselect enable-feature with-smartcard`, for the same reason.
 
 ---
 
@@ -99,8 +128,8 @@ ansible/
 ├── ansible.cfg
 ├── requirements.yml              # collections pinned to a range
 ├── controls/
-│   ├── rhel8_cat2_controls.yml   # the manifest: 15 controls, CCI, NIST, risk
-│   └── disa-exports/             # the DISA source the manifest derives from
+│   ├── rhel8_cat2_controls.yml   # the manifest: 29 controls, CCI, NIST, risk
+│   └── disa-exports/             # the DISA sources everything derives from
 ├── inventory/group_vars/         # which controls are on, per tier
 ├── remediate.yml                 # converge
 ├── audit.yml                     # read-only, fails on open findings
@@ -254,7 +283,42 @@ build instead of quietly producing a clean report.
 6. **Production, in batches**, with the environment approval and a change record.
 7. **Turn on the nightly drift job** and treat its issue as a real ticket.
 
-## 7. What this does not do
+## 8. Adding the next export
+
+The benchmark has 314 CAT II rules and the exports arrive a few at a time. The
+workflow is the same every time, and the pipeline tells you what it needs:
+
+```bash
+# 1. Drop the file in. Never edit an existing one - add a new file.
+cp ~/Downloads/ALL_CAT_II.txt ansible/controls/disa-exports/RHEL8-V2R8-CAT_II-003.txt
+
+# 2. What did it add? Controls repeated across files are deduplicated.
+python scripts/stig/parse_disa_export.py --merge ansible/controls/rhel8_cat2_controls.yml --diff
+#    ADDED  RHEL-08-0xxxxx  (needs a task file and a curated risk assessment)
+
+# 3. Write one task file per added control, curate its manifest entry, then:
+python scripts/stig/gen_control_docs.py --write
+#    Wrote docs/CONTROL-REFERENCE.md: N controls, N checks, N remediations.
+```
+
+Three properties make this safe to do incrementally:
+
+- **The tools read the directory, not a file.** Adding an export needs no code
+  change and no argument to remember.
+- **An unimplemented control is loud.** Until it has a task file the generated
+  reference lists it under *Coverage gap*, the header count shows
+  `Implemented by the role: N of M`, and CI fails on both the manifest drift and
+  the stale document. The benchmark drives the work.
+- **Curated judgement survives regeneration.** `remediation`, `risk`,
+  `reboot_required`, `applicability` and `notes` are preserved when the manifest
+  is rebuilt; a newly added control arrives as `risk: unknown`, which is a
+  prompt for a human rather than a default to ship.
+
+Current split across the 29: **11 automated, 8 assisted, 9 gated, 1 manual.**
+As the set grows, expect that ratio to hold or tilt further toward gated - the
+controls that are trivial to automate tend to be the ones already done.
+
+## 9. What this does not do
 
 Stated plainly, because a compliance tool that overstates its coverage is worse
 than no tool:

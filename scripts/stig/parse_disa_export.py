@@ -153,6 +153,48 @@ def parse_export(text: str) -> list[dict[str, Any]]:
     return [deduped[k] for k in sorted(deduped)]
 
 
+DEFAULT_EXPORT_DIR = Path("ansible/controls/disa-exports")
+
+
+def collect_export_files(paths: Sequence[Path]) -> list[Path]:
+    """Expand files and directories into a stable, deduplicated file list.
+
+    Exports arrive piecemeal - a benchmark with 314 CAT II rules is not going to
+    show up as one tidy upload. Pointing the tooling at a directory means a new
+    partial export is absorbed by dropping a file in, with no code change and no
+    argument to remember.
+    """
+    files: list[Path] = []
+    for path in paths:
+        if path.is_dir():
+            files.extend(sorted(path.glob("*.txt")))
+        elif path.is_file():
+            files.append(path)
+        else:
+            raise FileNotFoundError(f"{path}: no such file or directory")
+    # Preserve order, drop repeats (a file named twice, or inside a named dir).
+    seen: set[Path] = set()
+    unique: list[Path] = []
+    for f in files:
+        resolved = f.resolve()
+        if resolved not in seen:
+            seen.add(resolved)
+            unique.append(f)
+    if not unique:
+        raise FileNotFoundError(f"no .txt exports found under {', '.join(str(p) for p in paths)}")
+    return unique
+
+
+def parse_exports(paths: Sequence[Path]) -> list[dict[str, Any]]:
+    """Parse and merge every export, deduplicating controls across files."""
+    combined: list[str] = []
+    for f in collect_export_files(paths):
+        combined.append(f.read_text(encoding="utf-8", errors="replace"))
+    # parse_export already deduplicates by STIG ID and merges CCI/NIST, so the
+    # cross-file merge is the same operation as the within-file one.
+    return parse_export("\n________________________________________\n".join(combined))
+
+
 def load_curated(path: Path) -> dict[str, dict[str, Any]]:
     """Read the curated fields out of an existing manifest."""
     raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
@@ -208,7 +250,13 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         prog="parse-disa-export",
         description="Convert a DISA STIG text export into a control manifest.",
     )
-    parser.add_argument("export", type=Path, help="The DISA STIG text export.")
+    parser.add_argument(
+        "export",
+        nargs="*",
+        type=Path,
+        default=[DEFAULT_EXPORT_DIR],
+        help="DISA STIG text exports, or directories of them (default: %(default)s).",
+    )
     parser.add_argument(
         "--merge",
         type=Path,
@@ -230,16 +278,16 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
+    sources = args.export or [DEFAULT_EXPORT_DIR]
     try:
-        text = args.export.read_text(encoding="utf-8", errors="replace")
-    except OSError as exc:
+        controls = parse_exports(sources)
+    except (OSError, FileNotFoundError) as exc:
         sys.stderr.write(f"error: {exc}\n")
         return 2
 
-    controls = parse_export(text)
     if not controls:
         sys.stderr.write(
-            "error: no controls parsed. Check that the export is the plain-text "
+            "error: no controls parsed. Check that the exports are the plain-text "
             "format with 'STIG ID:' / 'Rule Title:' label lines.\n"
         )
         return 2

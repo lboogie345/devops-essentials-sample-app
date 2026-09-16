@@ -1,0 +1,83 @@
+---
+# RHEL-08-020352 | Local interactive user umask must be 077.
+#
+# "Less restrictive than 077" is a bitmask question, not a string comparison:
+# a umask satisfies the control when it masks every group and other bit, i.e.
+# (umask & 0o77) == 0o77. 027 and 022 fail; 077, 0077 and 777 pass.
+#
+# That test is "the last two octal digits are both 7", which needs no arithmetic
+# and so stays in POSIX awk. gawk's and()/strtonum() would be the obvious tools
+# and RHEL does ship gawk - but on a host where awk is mawk or busybox those
+# functions abort the script, the scan produces no output, and the control
+# reports compliant. A hardening check that fails open is worse than none.
+#
+# The fix text says to REMOVE the statement, not to rewrite it to 077 - the
+# system default then applies. Application accounts may hold a documented
+# exception, so removal is opt-in.
+
+- name: RHEL-08-020352 | Find umask statements in user initialization files
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      home={{ item.home | quote }}
+      [ -d "$home" ] || exit 0
+      grep -rHniE '^[[:space:]]*umask[[:space:]]+[0-7]{3,4}' "$home" 2>/dev/null \
+        | grep -v '\.bash_history' \
+        | awk -F: '{
+            rest = $0; sub(/^[^:]*:[^:]*:/, "", rest)
+            if (match(rest, /[0-7]+[[:space:]]*$/)) {
+              v = substr(rest, RSTART, RLENGTH); gsub(/[[:space:]]/, "", v)
+              if (length(v) >= 2 && substr(v, length(v) - 1, 2) != "77") print $1":"$2": umask "v
+            }
+          }' || true
+    executable: /bin/bash
+  loop: "{{ stig_interactive_users }}"
+  loop_control:
+    label: "{{ item.name }} ({{ item.home }})"
+  register: stig_020352_scan
+  changed_when: false
+  check_mode: false
+
+- name: RHEL-08-020352 | Collect the non-compliant umask statements
+  ansible.builtin.set_fact:
+    stig_020352_offenders: >-
+      {{ stig_020352_scan.results | default([]) | map(attribute='stdout_lines')
+         | flatten | select | list }}
+
+- name: RHEL-08-020352 | Remove the non-compliant umask statements
+  ansible.builtin.lineinfile:
+    path: "{{ item.split(':')[0] }}"
+    regexp: '^[[:space:]]*umask[[:space:]]+[0-7]{3,4}[[:space:]]*$'
+    state: absent
+    backup: "{{ stig_backup | bool }}"
+  loop: "{{ stig_020352_offenders }}"
+  loop_control:
+    label: "{{ item }}"
+  register: stig_020352
+  when:
+    - not (stig_audit_only | bool)
+    - stig_020352_remove | bool
+
+- name: RHEL-08-020352 | Report umask statements left for review
+  ansible.builtin.debug:
+    msg: >-
+      User initialization files set a umask less restrictive than 077. Removing the
+      statement lets the system default apply, which is the documented fix; an
+      application account may hold an ISSO exception. Set stig_020352_remove=true
+      after review: {{ stig_020352_offenders }}
+  when:
+    - stig_020352_offenders | length > 0
+    - not (stig_020352_remove | bool)
+
+- name: RHEL-08-020352 | Record result
+  ansible.builtin.include_tasks: record.yml
+  vars:
+    _stig_id: RHEL-08-020352
+    _status: >-
+      {{ ((stig_020352_offenders | length > 0) and not (stig_020352_remove | bool))
+         | ternary('Open', 'NotAFinding') }}
+    _changed: "{{ stig_020352.changed | default(false) }}"
+    _detail: >-
+      {{ stig_020352_offenders | length }} non-compliant umask statement(s) found.
+      {{ (stig_020352_offenders | length > 0)
+         | ternary(stig_020352_offenders | join('; '), 'No user initialization file weakens the umask.') }}

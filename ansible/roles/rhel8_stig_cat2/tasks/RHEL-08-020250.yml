@@ -1,0 +1,113 @@
+---
+# RHEL-08-020250 | Smart card logon must be implemented for MFA.
+#
+# GATED, and high blast radius: enabling smart card authentication on a host
+# without working CAC infrastructure locks every interactive login out at once.
+#
+# Enforced through authselect (the with-smartcard feature), never by editing
+# /etc/pam.d/system-auth or /etc/pam.d/smartcard-auth directly. Those files are
+# generated; a direct edit is reverted by the next apply-changes and makes
+# `authselect check` report the stack as modified, which is its own finding.
+# Same reasoning as RHEL-08-020101.
+
+- name: RHEL-08-020250 | Record non-applicability when an alternate MFA method is approved
+  ansible.builtin.include_tasks: record.yml
+  vars:
+    _stig_id: RHEL-08-020250
+    _status: Not_Applicable
+    _detail: >-
+      An approved alternate multifactor authentication method is in use
+      ({{ stig_mfa_alternate_ref | default('reference not recorded', true) }}).
+  when: stig_mfa_alternate | bool
+
+- name: RHEL-08-020250 | Report that the control is not configured
+  ansible.builtin.debug:
+    msg: >-
+      RHEL-08-020250 is gated and not enabled. Enabling smart card logon without a
+      working CAC/PIV chain - readers, middleware, a reachable CA and a certmap -
+      removes interactive access to the host. Stage it on a non-production system,
+      then set stig_020250_enabled=true.
+  when:
+    - not (stig_mfa_alternate | bool)
+    - not (stig_020250_enabled | bool)
+
+- name: RHEL-08-020250 | Record the unconfigured state
+  ansible.builtin.include_tasks: record.yml
+  vars:
+    _stig_id: RHEL-08-020250
+    _status: Open
+    _detail: >-
+      Gated control not enabled. Requires pam_cert_auth in sssd.conf and the
+      authselect with-smartcard feature, backed by working CAC infrastructure.
+  when:
+    - not (stig_mfa_alternate | bool)
+    - not (stig_020250_enabled | bool)
+
+- name: RHEL-08-020250 | Enable smart card logon
+  when:
+    - not (stig_mfa_alternate | bool)
+    - stig_020250_enabled | bool
+  block:
+    - name: RHEL-08-020250 | Require an SSSD configuration
+      ansible.builtin.stat:
+        path: /etc/sssd/sssd.conf
+      register: stig_020250_conf
+
+    - name: RHEL-08-020250 | Refuse to proceed without SSSD
+      ansible.builtin.assert:
+        that:
+          - stig_020250_conf.stat.exists
+        fail_msg: >-
+          /etc/sssd/sssd.conf is missing. Enabling the authselect smartcard feature
+          without an SSSD configuration to authenticate against would break login.
+
+    - name: RHEL-08-020250 | Enable pam_cert_auth in the [pam] section
+      ansible.builtin.lineinfile:
+        path: /etc/sssd/sssd.conf
+        regexp: '^[[:space:]]*pam_cert_auth[[:space:]]*='
+        line: "pam_cert_auth = True"
+        insertafter: '^\[pam\]'
+        owner: root
+        group: root
+        mode: "0600"
+        create: false
+        backup: "{{ stig_backup | bool }}"
+      register: stig_020250_sssd
+      when: not (stig_audit_only | bool)
+      notify: stig_sssd_restart
+
+    - name: RHEL-08-020250 | Enable the authselect smartcard feature
+      ansible.builtin.command:
+        cmd: "authselect enable-feature with-smartcard"
+      register: stig_020250_feature
+      changed_when: "'No existing configuration detected' not in (stig_020250_feature.stdout | default(''))"
+      when:
+        - not (stig_audit_only | bool)
+        - stig_authselect_in_use | default(false) | bool
+      notify: stig_authselect_apply
+
+    - name: RHEL-08-020250 | Verify the rendered PAM stack requests certificate auth
+      ansible.builtin.shell:
+        cmd: >-
+          set -o pipefail;
+          grep -l 'cert_auth' /etc/pam.d/system-auth /etc/pam.d/smartcard-auth 2>/dev/null | tr '\n' ' ' || true
+        executable: /bin/bash
+      register: stig_020250_verify
+      changed_when: false
+      check_mode: false
+
+    - name: RHEL-08-020250 | Record result
+      ansible.builtin.include_tasks: record.yml
+      vars:
+        _stig_id: RHEL-08-020250
+        _status: >-
+          {{ ((stig_020250_verify.stdout | default('')) is search('system-auth')
+              and (stig_020250_verify.stdout | default('')) is search('smartcard-auth'))
+             | ternary('NotAFinding', 'Open') }}
+        _changed: >-
+          {{ (stig_020250_sssd.changed | default(false))
+             or (stig_020250_feature.changed | default(false)) }}
+        _detail: >-
+          pam_cert_auth = True in /etc/sssd/sssd.conf; authselect with-smartcard enabled.
+          cert_auth present in: {{ (stig_020250_verify.stdout | default('') | trim) | default('neither PAM file', true) }}.
+          The check requires it in both system-auth and smartcard-auth.

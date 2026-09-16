@@ -1,0 +1,91 @@
+---
+# RHEL-08-020090 | The authenticated identity must be mapped to a user or group
+# account for PKI-based authentication (the certmap section of sssd.conf).
+#
+# GATED. matchrule, maprule and the domain are organizational PKI data. There is
+# no safe default, and a wrong certmap does not fail loudly - it maps
+# certificates to the wrong accounts, which is worse than not mapping them.
+
+- name: RHEL-08-020090 | Record non-applicability when an alternate MFA method is approved
+  ansible.builtin.include_tasks: record.yml
+  vars:
+    _stig_id: RHEL-08-020090
+    _status: Not_Applicable
+    _detail: >-
+      An approved alternate multifactor authentication method is in use
+      ({{ stig_mfa_alternate_ref | default('reference not recorded', true) }}).
+  when: stig_mfa_alternate | bool
+
+- name: RHEL-08-020090 | Report that the control is not configured
+  ansible.builtin.debug:
+    msg: >-
+      RHEL-08-020090 is gated and not enabled. Supply stig_020090_certmap with the
+      organization's PKI mapping rules (domain, matchrule, maprule) and set
+      stig_020090_enabled=true. A wrong rule maps certificates to the wrong
+      accounts silently, so there is no default.
+  when:
+    - not (stig_mfa_alternate | bool)
+    - not (stig_020090_enabled | bool)
+
+- name: RHEL-08-020090 | Record the unconfigured state
+  ansible.builtin.include_tasks: record.yml
+  vars:
+    _stig_id: RHEL-08-020090
+    _status: Open
+    _detail: >-
+      Gated control not enabled. Requires the organization's certificate-to-account
+      mapping rules in the certmap section of /etc/sssd/sssd.conf.
+  when:
+    - not (stig_mfa_alternate | bool)
+    - not (stig_020090_enabled | bool)
+
+- name: RHEL-08-020090 | Configure certificate mapping
+  when:
+    - not (stig_mfa_alternate | bool)
+    - stig_020090_enabled | bool
+  block:
+    - name: RHEL-08-020090 | Require the mapping rules to be supplied
+      ansible.builtin.assert:
+        that:
+          - stig_020090_certmap.domain | default('') | length > 0
+          - stig_020090_certmap.matchrule | default('') | length > 0
+          - stig_020090_certmap.maprule | default('') | length > 0
+        fail_msg: >-
+          stig_020090_enabled is true but stig_020090_certmap is incomplete. It needs
+          domain, matchrule and maprule. Refusing to guess a certificate mapping.
+
+    - name: RHEL-08-020090 | Require an SSSD configuration to extend
+      ansible.builtin.stat:
+        path: /etc/sssd/sssd.conf
+      register: stig_020090_conf
+
+    - name: RHEL-08-020090 | Write the certmap section
+      ansible.builtin.blockinfile:
+        path: /etc/sssd/sssd.conf
+        marker: "# {mark} ANSIBLE MANAGED - DISA STIG RHEL-08-020090"
+        block: |
+          [certmap/{{ stig_020090_certmap.domain }}/{{ stig_020090_certmap.rule_name | default('stig_rule') }}]
+          matchrule = {{ stig_020090_certmap.matchrule }}
+          maprule = {{ stig_020090_certmap.maprule }}
+          domains = {{ stig_020090_certmap.domain }}
+        owner: root
+        group: root
+        mode: "0600"
+        create: false
+        backup: "{{ stig_backup | bool }}"
+      register: stig_020090
+      when:
+        - not (stig_audit_only | bool)
+        - stig_020090_conf.stat.exists
+      notify: stig_sssd_restart
+
+    - name: RHEL-08-020090 | Record result
+      ansible.builtin.include_tasks: record.yml
+      vars:
+        _stig_id: RHEL-08-020090
+        _status: "{{ stig_020090_conf.stat.exists | ternary('NotAFinding', 'Open') }}"
+        _changed: "{{ stig_020090.changed | default(false) }}"
+        _detail: >-
+          {{ stig_020090_conf.stat.exists
+             | ternary('certmap/' ~ stig_020090_certmap.domain ~ ' written to /etc/sssd/sssd.conf.',
+                       'No /etc/sssd/sssd.conf to extend; SSSD is not configured on this host.') }}

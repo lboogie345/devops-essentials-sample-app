@@ -1,0 +1,73 @@
+---
+# RHEL-08-010090 | PKI authentication must validate certificates to an accepted
+# trust anchor (the DoD root CA in /etc/sssd/pki/sssd_auth_ca_db.pem).
+#
+# The fix text says to obtain the CA bundle from cyber.mil. Automation must not
+# do that: fetching a trust anchor over the network and installing it is exactly
+# the attack this control exists to prevent. The role will deploy a CA bundle
+# only from a path the organization controls and has already vetted, and
+# otherwise verifies and reports.
+
+- name: RHEL-08-010090 | Record non-applicability when an alternate MFA method is approved
+  ansible.builtin.include_tasks: record.yml
+  vars:
+    _stig_id: RHEL-08-010090
+    _status: Not_Applicable
+    _detail: >-
+      An approved alternate multifactor authentication method is in use
+      ({{ stig_mfa_alternate_ref | default('reference not recorded', true) }}).
+  when: stig_mfa_alternate | bool
+
+- name: RHEL-08-010090 | Verify the trust anchor
+  when: not (stig_mfa_alternate | bool)
+  block:
+    - name: RHEL-08-010090 | Deploy the CA bundle from the organization-controlled source
+      ansible.builtin.copy:
+        src: "{{ stig_010090_ca_source }}"
+        dest: "{{ stig_010090_ca_db }}"
+        owner: root
+        group: root
+        mode: "0644"
+        backup: "{{ stig_backup | bool }}"
+      register: stig_010090
+      when:
+        - not (stig_audit_only | bool)
+        - stig_010090_ca_source | length > 0
+
+    - name: RHEL-08-010090 | Inspect the installed trust anchor
+      ansible.builtin.shell:
+        cmd: >-
+          set -o pipefail;
+          openssl x509 -noout -issuer -subject -dates -in {{ stig_010090_ca_db | quote }}
+          2>/dev/null || true
+        executable: /bin/bash
+      register: stig_010090_cert
+      changed_when: false
+      check_mode: false
+
+    - name: RHEL-08-010090 | Confirm the certificate is currently valid
+      ansible.builtin.command:
+        cmd: "openssl x509 -checkend 0 -noout -in {{ stig_010090_ca_db | quote }}"
+      register: stig_010090_valid
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: RHEL-08-010090 | Record result
+      ansible.builtin.include_tasks: record.yml
+      vars:
+        _issuer_ok: "{{ stig_010090_cert.stdout | default('') is search('(?i)CN\\s*=\\s*DoD Root CA') }}"
+        _stig_id: RHEL-08-010090
+        _status: >-
+          {{ (_issuer_ok and (stig_010090_valid.rc | default(1)) == 0)
+             | ternary('NotAFinding', 'Open') }}
+        _changed: "{{ stig_010090.changed | default(false) }}"
+        _detail: >-
+          {{ stig_010090_ca_db }}:
+          {{ (stig_010090_cert.stdout_lines | default([]) | join(' | ')) | default('file missing or unreadable', true) }}.
+          {{ _issuer_ok | ternary('Issuer is a DoD root CA.',
+             'Issuer is NOT a DoD root CA - obtain the bundle from the PKI CA certificate
+              bundle at cyber.mil and stage it where stig_010090_ca_source points.') }}
+          {{ ((stig_010090_valid.rc | default(1)) == 0)
+             | ternary('Certificate is within its validity period.',
+                       'Certificate is expired or missing.') }}

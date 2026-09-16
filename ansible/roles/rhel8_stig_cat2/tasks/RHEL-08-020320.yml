@@ -1,0 +1,60 @@
+---
+# RHEL-08-020320 | The system must not have unnecessary accounts.
+#
+# GATED, and the role never runs userdel on its own initiative. "Unnecessary" is
+# defined by a document - the system's authorized-user list - that automation
+# does not hold. A playbook that deletes accounts it cannot authorize is a
+# denial-of-service with a compliance justification.
+#
+# What this does instead: enumerate the interactive accounts an assessor would
+# compare against that list, and remove only accounts an operator has named
+# explicitly in inventory.
+
+- name: RHEL-08-020320 | Enumerate interactive accounts for comparison
+  ansible.builtin.set_fact:
+    stig_020320_accounts: "{{ stig_interactive_users | map(attribute='name') | list }}"
+
+- name: RHEL-08-020320 | Report the accounts an assessor will check
+  ansible.builtin.debug:
+    msg: >-
+      Interactive accounts on this host (UID >= {{ stig_interactive_uid_min }} with a
+      login shell): {{ stig_020320_accounts | join(', ') | default('none', true) }}.
+      Compare against the system's authorized-user list. Accounts to remove go in
+      stig_020320_remove_accounts; nothing is deleted automatically.
+
+- name: RHEL-08-020320 | Refuse to remove a protected account
+  ansible.builtin.assert:
+    that:
+      - stig_020320_remove_accounts | intersect(stig_020320_protected_accounts) | length == 0
+    fail_msg: >-
+      stig_020320_remove_accounts names a protected account
+      ({{ stig_020320_remove_accounts | intersect(stig_020320_protected_accounts) | join(', ') }}).
+      Removing the automation or break-glass account mid-run would end the run and
+      the ability to fix it.
+  when: stig_020320_remove_accounts | length > 0
+
+- name: RHEL-08-020320 | Remove the explicitly named unauthorized accounts
+  ansible.builtin.user:
+    name: "{{ item }}"
+    state: absent
+    remove: "{{ stig_020320_remove_home | bool }}"
+  loop: "{{ stig_020320_remove_accounts }}"
+  register: stig_020320
+  when:
+    - not (stig_audit_only | bool)
+    - stig_020320_enabled | bool
+    - stig_020320_remove_accounts | length > 0
+
+- name: RHEL-08-020320 | Record result
+  ansible.builtin.include_tasks: record.yml
+  vars:
+    _stig_id: RHEL-08-020320
+    _status: Open
+    _changed: "{{ stig_020320.changed | default(false) }}"
+    _detail: >-
+      {{ stig_020320_accounts | length }} interactive account(s) present:
+      {{ stig_020320_accounts | join(', ') | default('none', true) }}.
+      {{ (stig_020320_remove_accounts | length > 0)
+         | ternary('Removed on request: ' ~ (stig_020320_remove_accounts | join(', ')) ~ '.', '') }}
+      Stays Open until an assessor confirms every remaining account against the
+      authorized-user list; automation cannot close this one.

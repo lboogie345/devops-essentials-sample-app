@@ -1,0 +1,59 @@
+---
+# RHEL-08-020017 | Account lockouts must persist across a reboot. RHEL 8.2+.
+#
+# pam_faillock's default tally directory lives under /run and is cleared at
+# boot, so an attacker who locks an account only has to wait for a reboot. A
+# non-default directory is the entire point of this control.
+
+- name: RHEL-08-020017 | Record non-applicability on RHEL below 8.2
+  ansible.builtin.include_tasks: record.yml
+  vars:
+    _stig_id: RHEL-08-020017
+    _status: Not_Applicable
+    _detail: "faillock.conf was introduced in RHEL 8.2; host is {{ stig_minor_version }}."
+  when: stig_minor_version is version('8.2', '<')
+
+- name: RHEL-08-020017 | Persist the faillock tally directory
+  when: stig_minor_version is version('8.2', '>=')
+  block:
+    - name: RHEL-08-020017 | Reject a default tally directory
+      ansible.builtin.assert:
+        that:
+          - not stig_020017_dir.startswith('/run/')
+          - not stig_020017_dir.startswith('/var/run/')
+        fail_msg: >-
+          stig_020017_dir is {{ stig_020017_dir }}, which is cleared on boot.
+          The control exists precisely to move the tally off a volatile path.
+
+    - name: RHEL-08-020017 | Create the tally directory
+      ansible.builtin.file:
+        path: "{{ stig_020017_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+      when: not (stig_audit_only | bool)
+
+    - name: RHEL-08-020017 | Point faillock at the persistent directory
+      ansible.builtin.lineinfile:
+        path: /etc/security/faillock.conf
+        regexp: '^[[:space:]]*#?[[:space:]]*dir[[:space:]]*='
+        line: "dir = {{ stig_020017_dir }}"
+        owner: root
+        group: root
+        mode: "0644"
+        create: false
+        backup: "{{ stig_backup | bool }}"
+      register: stig_020017
+      when: not (stig_audit_only | bool)
+
+    - name: RHEL-08-020017 | Record result
+      ansible.builtin.include_tasks: record.yml
+      vars:
+        _stig_id: RHEL-08-020017
+        _status: NotAFinding
+        _changed: "{{ stig_020017.changed | default(false) }}"
+        _detail: >-
+          dir = {{ stig_020017_dir }} in /etc/security/faillock.conf. Existing tallies in
+          the old location are not migrated; accounts locked before this change reset at
+          the next boot, once.

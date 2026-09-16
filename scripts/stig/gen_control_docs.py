@@ -40,7 +40,7 @@ except ImportError:  # pragma: no cover - environment problem, not logic
     sys.stderr.write("PyYAML is required: pip install -r scripts/stig/requirements.txt\n")
     raise
 
-DEFAULT_EXPORT = Path("ansible/controls/disa-exports/RHEL8-V2R8-CAT_II.txt")
+DEFAULT_EXPORTS = [Path("ansible/controls/disa-exports")]
 DEFAULT_MANIFEST = Path("ansible/controls/rhel8_cat2_controls.yml")
 DEFAULT_OUTPUT = Path("docs/CONTROL-REFERENCE.md")
 TASKS_DIR = Path("ansible/roles/rhel8_stig_cat2/tasks")
@@ -49,6 +49,7 @@ REMEDIATION_LABEL = {
     "automated": "Automated - the role enforces this with no human decision required.",
     "gated": "Gated - off by default; needs organization-supplied data before it runs.",
     "assisted": "Assisted - the role converges what it safely can and reports the rest.",
+    "manual": "Manual - no automatable fix exists; the role gathers evidence for a human.",
 }
 
 
@@ -115,18 +116,18 @@ def render(
     controls: list[dict[str, Any]],
     manifest: dict[str, dict[str, Any]],
     tasks_dir: Path,
-    export_path: Path,
+    export_paths: Sequence[Path],
 ) -> str:
     checks = sum(1 for c in controls if c.get("check_text"))
     fixes = sum(1 for c in controls if c.get("fix_text"))
     covered = {c["stig_id"]: find_task_file(c["stig_id"], tasks_dir) for c in controls}
     implemented = sum(1 for path in covered.values() if path is not None)
-    export_display = display_path(export_path)
+    sources = [display_path(p) for p in export_paths]
 
     lines: list[str] = [
         "<!-- GENERATED FILE - DO NOT EDIT BY HAND.",
         "     Regenerate with: python scripts/stig/gen_control_docs.py --write",
-        f"     Source: {export_display} -->",
+        "     Sources: " + ", ".join(sources) + " -->",
         "",
         "# RHEL 8 CAT II control reference",
         "",
@@ -134,9 +135,11 @@ def render(
         "One check and one remediation per control, quoted verbatim from the DISA "
         "export, joined to what this repository does about each one.",
         "",
-        f"Counts are computed from `{export_display}` at generation time. "
-        "If your benchmark export contains a different number of controls, replace "
-        "that file and regenerate - the totals above follow the source.",
+        "Counts are computed at generation time from "
+        + ", ".join(f"`{s}`" for s in sources)
+        + ". Add another export to that directory and regenerate; the totals follow "
+        "the source. The full RHEL 8 V2R8 benchmark contains 314 CAT II rules, so "
+        "this set is expected to grow.",
         "",
         f"Implemented by the role: **{implemented} of {len(controls)}**.",
         "",
@@ -233,7 +236,13 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         prog="gen-control-docs",
         description="Generate the per-control check/remediation reference.",
     )
-    parser.add_argument("--export", type=Path, default=DEFAULT_EXPORT)
+    parser.add_argument(
+        "--exports",
+        nargs="+",
+        type=Path,
+        default=DEFAULT_EXPORTS,
+        help="DISA exports, or directories of them (default: %(default)s).",
+    )
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
     parser.add_argument("--tasks-dir", type=Path, default=TASKS_DIR)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
@@ -250,14 +259,14 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
     try:
-        text = args.export.read_text(encoding="utf-8", errors="replace")
-    except OSError as exc:
+        export_files = disa.collect_export_files(args.exports)
+        controls = disa.parse_exports(args.exports)
+    except (OSError, FileNotFoundError) as exc:
         sys.stderr.write(f"error: {exc}\n")
         return 2
 
-    controls = disa.parse_export(text)
     if not controls:
-        sys.stderr.write(f"error: no controls parsed from {args.export}\n")
+        sys.stderr.write(f"error: no controls parsed from {args.exports}\n")
         return 2
 
     try:
@@ -266,7 +275,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         sys.stderr.write(f"error: {exc}\n")
         return 2
 
-    rendered = render(controls, manifest, args.tasks_dir, args.export)
+    rendered = render(controls, manifest, args.tasks_dir, export_files)
 
     if args.check:
         current = args.output.read_text(encoding="utf-8") if args.output.exists() else ""
