@@ -1,0 +1,161 @@
+---
+name: STIG validate
+
+# Runs on every change to the baseline. Nothing here touches a managed host:
+# this job answers "is the content correct and internally consistent", which is
+# the question a reviewer needs answered before approving a change that will be
+# applied to production Linux hosts.
+on:
+  pull_request:
+    paths:
+      - 'ansible/**'
+      - 'scripts/**'
+      - '.github/workflows/stig-*.yml'
+      - '.ansible-lint'
+      - '.yamllint'
+      - 'ruff.toml'
+      - 'pytest.ini'
+  push:
+    branches: [master, main]
+    paths:
+      - 'ansible/**'
+      - 'scripts/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stig-validate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint and syntax
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: scripts/stig/requirements-dev.txt
+
+      - name: Install tooling
+        run: pip install -r scripts/stig/requirements-dev.txt
+
+      - name: Install pinned collections
+        run: ansible-galaxy collection install -r ansible/requirements.yml
+
+      - name: yamllint
+        run: yamllint -c .yamllint ansible/
+
+      - name: ansible-lint (production profile)
+        run: ansible-lint
+
+      - name: Playbook syntax check
+        working-directory: ansible
+        run: |
+          ansible-playbook remediate.yml --syntax-check
+          ansible-playbook audit.yml --syntax-check
+
+      - name: ruff
+        run: |
+          ruff check scripts/
+          ruff format --check scripts/
+
+  test:
+    name: Python unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: scripts/stig/requirements-dev.txt
+
+      - name: Install tooling
+        run: pip install -r scripts/stig/requirements-dev.txt
+
+      - name: pytest
+        run: python -m pytest
+
+  contract:
+    name: Evidence contract
+    runs-on: ubuntu-latest
+    # The seam most likely to fail silently: the role keeps running, the
+    # reporter keeps running, and every control quietly reads Not_Reviewed.
+    # This proves the two halves still agree on the schema.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install tooling
+        run: pip install -r scripts/stig/requirements-dev.txt
+
+      - name: Generate evidence through the role's own task files
+        working-directory: ansible
+        env:
+          STIG_TEST_DIR: ${{ runner.temp }}/stig-evidence
+        run: ansible-playbook tests/evidence_contract.yml -i localhost,
+
+      - name: Verify the reporter accepts what the role produced
+        run: |
+          python scripts/stig/report.py "${{ runner.temp }}/stig-evidence" \
+            --controls ansible/controls/rhel8_cat2_controls.yml \
+            --markdown "${{ runner.temp }}/summary.md" \
+            --poam "${{ runner.temp }}/poam.csv" \
+            --junit "${{ runner.temp }}/junit.xml" \
+            --exit-zero
+          test -s "${{ runner.temp }}/poam.csv"
+          python - <<'PY'
+          import os
+          import xml.etree.ElementTree as ET
+          tree = ET.parse(os.environ["RUNNER_TEMP"] + "/junit.xml")
+          suite = tree.getroot().find("testsuite")
+          assert suite is not None, "reporter produced no test suite"
+          assert suite.get("tests") == "15", f"expected 15 controls, got {suite.get('tests')}"
+          print("evidence contract holds")
+          PY
+
+  benchmark-drift:
+    name: Benchmark drift
+    runs-on: ubuntu-latest
+    # Catches the case where DISA publishes a release that adds or renames a
+    # CAT II control and the manifest silently keeps enforcing the old one.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - run: pip install -r scripts/stig/requirements.txt
+
+      - name: Compare the manifest against the committed DISA export
+        run: |
+          python scripts/stig/parse_disa_export.py \
+            ansible/controls/disa-exports/RHEL8-V2R8-CAT_II.txt \
+            --merge ansible/controls/rhel8_cat2_controls.yml \
+            --diff | tee "${{ runner.temp }}/drift.txt"
+
+      - name: Explain a drift failure
+        if: failure()
+        run: |
+          {
+            echo "## Benchmark drift detected"
+            echo
+            echo "The control manifest no longer matches the committed DISA export."
+            echo "Each ADDED control needs a task file in \`ansible/roles/rhel8_stig_cat2/tasks/\`"
+            echo "and a curated risk assessment before this gate clears."
+            echo
+            echo '```'
+            cat "${{ runner.temp }}/drift.txt" || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

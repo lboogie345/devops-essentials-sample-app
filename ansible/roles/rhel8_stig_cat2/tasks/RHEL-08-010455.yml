@@ -1,0 +1,94 @@
+---
+# RHEL-08-010455 | sudo must elevate the SELinux context for administrators.
+#
+# GATED. This writes a sudoers rule that changes how every administrator in the
+# named group escalates. Enabling it without a correct, existing group name
+# produces a valid-but-useless rule at best. It is off until the org supplies
+# stig_010455_admin_group.
+
+- name: RHEL-08-010455 | Report that the control is not configured
+  ansible.builtin.debug:
+    msg: >-
+      RHEL-08-010455 is gated and not enabled. Set stig_010455_enabled=true and
+      stig_010455_admin_group to the organization's sudo administrator group to
+      remediate. Until then this host reports Open, not compliant.
+  when: not (stig_010455_enabled | bool)
+
+- name: RHEL-08-010455 | Record the unconfigured state
+  ansible.builtin.include_tasks: record.yml
+  vars:
+    _stig_id: RHEL-08-010455
+    _status: Open
+    _detail: >-
+      Gated control not enabled. Requires an organization-defined sudoers
+      administrator group to be mapped to TYPE=sysadm_t ROLE=sysadm_r.
+  when: not (stig_010455_enabled | bool)
+
+- name: RHEL-08-010455 | Remediate the SELinux sudo elevation
+  when: stig_010455_enabled | bool
+  block:
+    - name: RHEL-08-010455 | Require an administrator group to be named
+      ansible.builtin.assert:
+        that:
+          - stig_010455_admin_group | length > 0
+        fail_msg: >-
+          stig_010455_enabled is true but stig_010455_admin_group is empty.
+          Refusing to guess which group holds administrator sudo rights.
+
+    - name: RHEL-08-010455 | Confirm the administrator group exists on the host
+      ansible.builtin.command:
+        cmd: "getent group {{ stig_010455_admin_group }}"
+      register: stig_010455_group
+      changed_when: false
+      failed_when: stig_010455_group.rc != 0
+      check_mode: false
+
+    - name: RHEL-08-010455 | Find sudoers entries that conflict with the STIG rule
+      ansible.builtin.shell:
+        cmd: >-
+          set -o pipefail;
+          grep -rnE 'ROLE=|TYPE=' /etc/sudoers /etc/sudoers.d 2>/dev/null
+          | grep -v '^{{ stig_010455_sudoers_file }}:' || true
+        executable: /bin/bash
+      register: stig_010455_conflicts
+      changed_when: false
+      check_mode: false
+
+    - name: RHEL-08-010455 | Install the SELinux elevation sudoers rule
+      ansible.builtin.copy:
+        content: |
+          ## {{ ansible_managed }}
+          ## DISA STIG RHEL-08-010455 (V-272484)
+          ## Elevate the SELinux type and role when an administrator calls sudo.
+          %{{ stig_010455_admin_group }} ALL=(ALL) TYPE=sysadm_t ROLE=sysadm_r ALL
+        dest: "{{ stig_010455_sudoers_file }}"
+        owner: root
+        group: root
+        mode: "0440"
+        backup: "{{ stig_backup | bool }}"
+        validate: "visudo -cf %s"
+      register: stig_010455
+      when: not (stig_audit_only | bool)
+
+    - name: RHEL-08-010455 | Report conflicting SELinux sudoers entries
+      ansible.builtin.debug:
+        msg: >-
+          The check text fails a host with conflicting results. Remove or
+          reconcile these entries manually: {{ stig_010455_conflicts.stdout_lines }}
+      when: stig_010455_conflicts.stdout_lines | default([]) | length > 0
+
+    - name: RHEL-08-010455 | Determine whether conflicting entries remain
+      ansible.builtin.set_fact:
+        stig_010455_conflicting: "{{ stig_010455_conflicts.stdout_lines | default([]) | length > 0 }}"
+
+    - name: RHEL-08-010455 | Record result
+      ansible.builtin.include_tasks: record.yml
+      vars:
+        _stig_id: RHEL-08-010455
+        _status: "{{ stig_010455_conflicting | bool | ternary('Open', 'NotAFinding') }}"
+        _changed: "{{ stig_010455.changed | default(false) }}"
+        _detail: >-
+          %{{ stig_010455_admin_group }} mapped to TYPE=sysadm_t ROLE=sysadm_r in
+          {{ stig_010455_sudoers_file }}.
+          {{ stig_010455_conflicting | bool
+             | ternary('Conflicting entries still present: ' ~ (stig_010455_conflicts.stdout_lines | join('; ')), '') }}

@@ -1,0 +1,28 @@
+---
+- name: Reload sysctl settings
+  ansible.builtin.command:
+    cmd: sysctl --system
+  changed_when: true
+  listen: stig_sysctl_reload
+
+- name: Load audit rules
+  ansible.builtin.command:
+    cmd: augenrules --load
+  register: stig_augenrules
+  changed_when: true
+  failed_when:
+    - stig_augenrules.rc != 0
+    - "'rule exists' not in (stig_augenrules.stderr | default(''))"
+  listen: stig_auditd_reload
+
+- name: Restart systemd-logind
+  ansible.builtin.systemd:
+    name: systemd-logind
+    state: restarted
+  listen: stig_logind_restart
+
+- name: Apply authselect profile
+  ansible.builtin.command:
+    cmd: "authselect apply-changes -b"
+  changed_when: true
+  listen: stig_authselect_apply

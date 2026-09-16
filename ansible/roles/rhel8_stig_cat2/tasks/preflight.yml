@@ -1,0 +1,56 @@
+---
+- name: Preflight | Fail fast on a non-RHEL-8 host
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] == 'RedHat'
+      - ansible_facts['distribution_major_version'] is version('8', '==')
+    fail_msg: >-
+      This role implements the RHEL 8 STIG only. Host reports
+      {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}.
+    success_msg: "Host is {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}."
+
+- name: Preflight | Record the exact benchmark this run enforces
+  ansible.builtin.set_fact:
+    stig_benchmark: "RHEL 8 STIG V2R8 (2026-07-01) CAT II"
+    stig_minor_version: "{{ ansible_facts['distribution_version'] }}"
+    stig_results: []
+    stig_reboot_required: false
+
+- name: Preflight | Determine the active authselect profile
+  ansible.builtin.command:
+    cmd: authselect current --raw
+  register: stig_authselect_current
+  changed_when: false
+  failed_when: false
+
+- name: Preflight | Determine the auditd rule-loading mode
+  ansible.builtin.command:
+    cmd: auditctl -s
+  register: stig_auditctl_status
+  changed_when: false
+  failed_when: false
+
+- name: Preflight | Flag auditd immutable mode, which defers rule changes to reboot
+  ansible.builtin.set_fact:
+    stig_auditd_immutable: >-
+      {{ (stig_auditctl_status.stdout | default('')) is search('enabled\s+2') }}
+
+- name: Preflight | Read the current SELinux state
+  ansible.builtin.set_fact:
+    stig_selinux_enabled: "{{ ansible_facts['selinux']['status'] | default('disabled') == 'enabled' }}"
+
+- name: Preflight | Install the SELinux management tooling the gated controls need
+  ansible.builtin.dnf:
+    name: policycoreutils-python-utils
+    state: present
+  when:
+    - not (stig_audit_only | bool)
+    - stig_040400_enabled | bool
+    - stig_selinux_enabled | bool
+
+- name: Preflight | Announce audit-only mode
+  ansible.builtin.debug:
+    msg: >-
+      stig_audit_only is set. State will be gathered and reported; nothing will
+      be converged on {{ inventory_hostname }}.
+  when: stig_audit_only | bool

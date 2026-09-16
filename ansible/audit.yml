@@ -1,0 +1,32 @@
+---
+# Read-only compliance audit. Converges nothing, writes evidence, and fails the
+# play if any control is Open - which is what makes it usable as a pipeline gate
+# and as a scheduled drift detector.
+#
+#   ansible-playbook playbooks/audit.yml --limit prod
+- name: RHEL 8 STIG V2R8 CAT II audit
+  hosts: "{{ stig_target | default('rhel8') }}"
+  become: true
+  gather_facts: true
+  vars:
+    stig_audit_only: true
+    stig_run_id: "{{ lookup('env', 'GITHUB_RUN_ID') | default('local-' ~ ansible_date_time.epoch, true) }}"
+    stig_evidence_fetch_dir: "{{ lookup('env', 'STIG_EVIDENCE_DIR') | default('./evidence', true) }}"
+    # An audit must never fail closed on a gated control that the org has
+    # formally risk-accepted; list those STIG IDs here with the acceptance ref.
+    stig_accepted_risks: {}
+  roles:
+    - role: rhel8_stig_cat2
+
+  post_tasks:
+    - name: Fail the audit when open findings remain
+      ansible.builtin.fail:
+        msg: >-
+          {{ inventory_hostname }} has open CAT II findings:
+          {{ stig_open_ids | join(', ') }}.
+          Evidence: {{ stig_evidence_dir }}/{{ inventory_hostname }}-stig-cat2.json
+      vars:
+        stig_open_ids: >-
+          {{ stig_results | selectattr('status', 'equalto', 'Open')
+             | map(attribute='stig_id') | reject('in', stig_accepted_risks.keys() | list) | list }}
+      when: stig_open_ids | length > 0

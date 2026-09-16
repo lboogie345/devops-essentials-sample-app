@@ -1,0 +1,121 @@
+---
+# RHEL-08-040221 net.ipv4.conf.all.log_martians      = 1
+# RHEL-08-040222 net.ipv4.conf.default.log_martians  = 1
+# RHEL-08-040287 net.ipv4.conf.default.rp_filter     = 1
+#
+# Two traps this file is written around:
+#   1. sysctl --system takes the lexicographically last definition of a key.
+#      A host can hold the right value in /etc/sysctl.d and still fail the scan
+#      because a later file overrides it. Conflicts are detected and reported.
+#   2. `default.*` applies to interfaces created after the change. Existing
+#      interfaces keep their value, so the running config and the file can
+#      disagree. rp_filter is only pushed onto live interfaces on request,
+#      because strict reverse-path filtering drops traffic on asymmetric routes.
+
+- name: Sysctl | Search every sysctl path for conflicting definitions
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail;
+      grep -RHsE '^[[:space:]]*net\.ipv4\.conf\.(all|default)\.(log_martians|rp_filter)[[:space:]]*='
+      /etc/sysctl.conf /etc/sysctl.d/ /run/sysctl.d/ /usr/local/lib/sysctl.d/
+      /usr/lib/sysctl.d/ /lib/sysctl.d/ 2>/dev/null | sort || true
+    executable: /bin/bash
+  register: stig_sysctl_existing
+  changed_when: false
+  check_mode: false
+  when: stig_sysctl_report_conflicts | bool
+
+- name: Sysctl | Report files that could override the STIG values
+  ansible.builtin.debug:
+    msg: >-
+      Existing definitions found. `sysctl --system` honours the lexicographically
+      last filename, so verify none of these outrank the STIG files:
+      {{ stig_sysctl_existing.stdout_lines }}
+  when:
+    - stig_sysctl_report_conflicts | bool
+    - stig_sysctl_existing.stdout_lines | default([]) | length > 0
+
+# --------------------------------------------------------------------------
+- name: RHEL-08-040221 | Log IPv4 martian packets on all interfaces
+  ansible.posix.sysctl:
+    name: net.ipv4.conf.all.log_martians
+    value: "1"
+    sysctl_file: "{{ stig_sysctl_martians_file }}"
+    sysctl_set: true
+    state: present
+    reload: true
+  register: stig_040221
+  when:
+    - stig_040221_enabled | bool
+    - not (stig_audit_only | bool)
+
+- name: RHEL-08-040221 | Record result
+  ansible.builtin.include_tasks: record.yml
+  vars:
+    _stig_id: RHEL-08-040221
+    _status: "{{ (stig_040221 is skipped) | ternary('Not_Reviewed', 'NotAFinding') }}"
+    _changed: "{{ stig_040221.changed | default(false) }}"
+    _detail: "net.ipv4.conf.all.log_martians=1 in {{ stig_sysctl_martians_file }}"
+  when: stig_040221_enabled | bool
+
+# --------------------------------------------------------------------------
+- name: RHEL-08-040222 | Log IPv4 martian packets on new interfaces by default
+  ansible.posix.sysctl:
+    name: net.ipv4.conf.default.log_martians
+    value: "1"
+    sysctl_file: "{{ stig_sysctl_martians_file }}"
+    sysctl_set: true
+    state: present
+    reload: true
+  register: stig_040222
+  when:
+    - stig_040222_enabled | bool
+    - not (stig_audit_only | bool)
+
+- name: RHEL-08-040222 | Record result
+  ansible.builtin.include_tasks: record.yml
+  vars:
+    _stig_id: RHEL-08-040222
+    _status: "{{ (stig_040222 is skipped) | ternary('Not_Reviewed', 'NotAFinding') }}"
+    _changed: "{{ stig_040222.changed | default(false) }}"
+    _detail: "net.ipv4.conf.default.log_martians=1 in {{ stig_sysctl_martians_file }}"
+  when: stig_040222_enabled | bool
+
+# --------------------------------------------------------------------------
+- name: RHEL-08-040287 | Enable reverse-path filtering on new interfaces by default
+  ansible.posix.sysctl:
+    name: net.ipv4.conf.default.rp_filter
+    value: "1"
+    sysctl_file: "{{ stig_sysctl_rpfilter_file }}"
+    sysctl_set: true
+    state: present
+    reload: true
+  register: stig_040287
+  when:
+    - stig_040287_enabled | bool
+    - not (stig_audit_only | bool)
+
+- name: RHEL-08-040287 | Apply reverse-path filtering to already-configured interfaces
+  ansible.posix.sysctl:
+    name: "net.ipv4.conf.{{ item }}.rp_filter"
+    value: "1"
+    sysctl_file: "{{ stig_sysctl_rpfilter_file }}"
+    sysctl_set: true
+    state: present
+    reload: true
+  loop: "{{ ansible_facts['interfaces'] | reject('equalto', 'lo') | list }}"
+  when:
+    - stig_040287_enabled | bool
+    - stig_040287_apply_to_existing_interfaces | bool
+    - not (stig_audit_only | bool)
+
+- name: RHEL-08-040287 | Record result
+  ansible.builtin.include_tasks: record.yml
+  vars:
+    _stig_id: RHEL-08-040287
+    _status: "{{ (stig_040287 is skipped) | ternary('Not_Reviewed', 'NotAFinding') }}"
+    _changed: "{{ stig_040287.changed | default(false) }}"
+    _detail: >-
+      net.ipv4.conf.default.rp_filter=1 in {{ stig_sysctl_rpfilter_file }};
+      existing interfaces {{ stig_040287_apply_to_existing_interfaces | ternary('also updated', 'left unchanged') }}
+  when: stig_040287_enabled | bool

@@ -1,0 +1,17 @@
+---
+profile: production
+exclude_paths:
+  - ansible/collections/
+  - evidence/
+  - .github/
+  - gradle/
+skip_list:
+  # The role deliberately exposes unprefixed `stig_*` variables instead of
+  # `rhel8_stig_cat2_*`. They are the role's public interface: system owners set
+  # them in inventory, the audit playbook reads them, and the STIG ID in the name
+  # (stig_040287_enabled) is what makes an inventory file reviewable against the
+  # benchmark. A 22-character role prefix on every one of them would obscure that
+  # without adding isolation the role needs.
+  - var-naming[no-role-prefix]
+warn_list:
+  - experimental

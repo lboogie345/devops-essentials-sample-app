@@ -1,0 +1,40 @@
+---
+# RHEL-08-010385 | /etc/pam.d/sudo must not bypass password requirements.
+#
+# Operational warning: removing a pam_succeed_if bypass makes sudo start asking
+# for a password where it previously did not. Any CI account or script that
+# escalated through that bypass breaks at the same moment. Check for
+# passwordless automation before enabling this control fleet-wide.
+
+- name: RHEL-08-010385 | Look for pam_succeed_if in the sudo PAM stack
+  ansible.builtin.shell:
+    cmd: "set -o pipefail; grep -n 'pam_succeed_if' /etc/pam.d/sudo || true"
+    executable: /bin/bash
+  register: stig_010385_found
+  changed_when: false
+  check_mode: false
+
+- name: RHEL-08-010385 | Remove every pam_succeed_if line from /etc/pam.d/sudo
+  ansible.builtin.lineinfile:
+    path: /etc/pam.d/sudo
+    regexp: 'pam_succeed_if'
+    state: absent
+    owner: root
+    group: root
+    mode: "0644"
+    backup: "{{ stig_backup | bool }}"
+  register: stig_010385
+  when:
+    - not (stig_audit_only | bool)
+    - stig_010385_found.stdout | default('') | length > 0
+
+- name: RHEL-08-010385 | Record result
+  ansible.builtin.include_tasks: record.yml
+  vars:
+    _stig_id: RHEL-08-010385
+    _status: NotAFinding
+    _changed: "{{ stig_010385.changed | default(false) }}"
+    _detail: >-
+      {{ (stig_010385_found.stdout_lines | default([]) | length > 0)
+         | ternary('Removed bypass entries: ' ~ (stig_010385_found.stdout_lines | join('; ')),
+                   'No pam_succeed_if entries present.') }}

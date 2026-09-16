@@ -1,0 +1,21 @@
+---
+galaxy_info:
+  role_name: rhel8_stig_cat2
+  author: Platform Security Engineering
+  description: >-
+    Remediates the RHEL 8 STIG V2R8 CAT II findings tracked in
+    ansible/controls/rhel8_cat2_controls.yml, and emits machine-readable
+    compliance evidence for each host.
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: EL
+      versions:
+        - "8"
+  galaxy_tags:
+    - security
+    - stig
+    - disa
+    - rhel8
+    - compliance
+dependencies: []

@@ -1,0 +1,10 @@
+---
+# Production example of a documented exemption. The approval reference travels
+# into the evidence artifact, so the assessor sees an approved deviation rather
+# than an unexplained gap.
+stig_040321_gui_approved: false
+stig_040321_gui_approval_ref: ""
+
+# Multi-homed hosts in this tier use asymmetric routes; strict reverse-path
+# filtering on live interfaces would drop legitimate return traffic.
+stig_040287_apply_to_existing_interfaces: false

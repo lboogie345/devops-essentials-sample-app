@@ -1,0 +1,35 @@
+---
+# RHEL-08-010358 | A mail transport must exist so configuration-change alerts
+# can reach the ISSO/ISSM. mailx and s-nail both satisfy the check.
+
+- name: RHEL-08-010358 | Read the installed package inventory
+  ansible.builtin.package_facts:
+    manager: rpm
+
+- name: RHEL-08-010358 | Install the mail client
+  ansible.builtin.dnf:
+    name: "{{ stig_010358_package }}"
+    state: present
+  register: stig_010358
+  when:
+    - not (stig_audit_only | bool)
+    - stig_mail_packages | intersect(ansible_facts['packages'].keys() | list) | length == 0
+
+- name: RHEL-08-010358 | Determine which accepted mail clients are present
+  ansible.builtin.set_fact:
+    stig_010358_present: >-
+      {{ stig_mail_packages | intersect(ansible_facts['packages'].keys() | list) }}
+
+- name: RHEL-08-010358 | Record result
+  ansible.builtin.include_tasks: record.yml
+  vars:
+    _stig_id: RHEL-08-010358
+    _status: >-
+      {{ ((stig_010358_present | length > 0) or not (stig_audit_only | bool))
+         | ternary('NotAFinding', 'Open') }}
+    _changed: "{{ stig_010358.changed | default(false) }}"
+    _detail: >-
+      Mail transport {{ (stig_010358_present | length > 0)
+      | ternary('present: ' ~ (stig_010358_present | join(', ')), 'installed: ' ~ stig_010358_package) }}.
+      Installing the client satisfies the STIG; delivery to the ISSO still depends
+      on a working relay, which this control does not verify.

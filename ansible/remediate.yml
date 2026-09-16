@@ -1,0 +1,31 @@
+---
+# Converge RHEL 8 CAT II findings.
+#
+# Run it in check mode first. The same playbook, with --check --diff, is the
+# drift detector; without --check it is the remediation. One code path, so the
+# thing that reports is the thing that fixes.
+#
+#   ansible-playbook playbooks/remediate.yml --check --diff --limit staging
+#   ansible-playbook playbooks/remediate.yml --limit staging
+- name: RHEL 8 STIG V2R8 CAT II remediation
+  hosts: "{{ stig_target | default('rhel8') }}"
+  become: true
+  gather_facts: true
+  # A rolling window keeps a broken control from taking a whole tier at once.
+  serial: "{{ stig_serial | default('25%') }}"
+  # Stop the batch rather than march a bad change across the estate.
+  max_fail_percentage: 0
+  vars:
+    stig_run_id: "{{ lookup('env', 'GITHUB_RUN_ID') | default('local-' ~ ansible_date_time.epoch, true) }}"
+    stig_evidence_fetch_dir: "{{ lookup('env', 'STIG_EVIDENCE_DIR') | default('./evidence', true) }}"
+  roles:
+    - role: rhel8_stig_cat2
+
+  post_tasks:
+    - name: Report hosts that still need a reboot to finish converging
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }} has pending changes that only take effect after
+          a reboot. Schedule one through change management; until then the host
+          reports Open for those controls.
+      when: stig_results | selectattr('reboot_required') | list | length > 0

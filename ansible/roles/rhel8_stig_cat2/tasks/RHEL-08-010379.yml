@@ -1,0 +1,80 @@
+---
+# RHEL-08-010379 | /etc/sudoers must specify only the default include directory.
+#
+# Every write to sudoers is validated with `visudo -cf` before it is committed.
+# An unvalidated sudoers edit is the fastest way to lock an entire fleet out of
+# privilege escalation, including the account this playbook runs under.
+
+- name: RHEL-08-010379 | Read the include directives in /etc/sudoers
+  ansible.builtin.shell:
+    cmd: "set -o pipefail; grep -nE '^[[:space:]]*[#@]include' /etc/sudoers || true"
+    executable: /bin/bash
+  register: stig_010379_includes
+  changed_when: false
+  check_mode: false
+
+- name: RHEL-08-010379 | Enforce the default includedir directive
+  ansible.builtin.lineinfile:
+    path: /etc/sudoers
+    regexp: '^[[:space:]]*#includedir[[:space:]]'
+    line: "#includedir /etc/sudoers.d"
+    owner: root
+    group: root
+    mode: "0440"
+    backup: "{{ stig_backup | bool }}"
+    validate: "visudo -cf %s"
+  register: stig_010379
+  when:
+    - not (stig_audit_only | bool)
+    - stig_010379_includes.stdout | default('') | length > 0
+
+- name: RHEL-08-010379 | Find nested includes inside /etc/sudoers.d
+  ansible.builtin.shell:
+    cmd: "set -o pipefail; grep -rnE '^[[:space:]]*[#@]include' /etc/sudoers.d || true"
+    executable: /bin/bash
+  register: stig_010379_nested
+  changed_when: false
+  check_mode: false
+
+- name: RHEL-08-010379 | Strip nested includes from /etc/sudoers.d
+  ansible.builtin.lineinfile:
+    path: "{{ item.split(':')[0] }}"
+    regexp: '^[[:space:]]*[#@]include'
+    state: absent
+    backup: "{{ stig_backup | bool }}"
+    validate: "visudo -cf %s"
+  loop: "{{ stig_010379_nested.stdout_lines | default([]) | map('trim') | list }}"
+  when:
+    - not (stig_audit_only | bool)
+    - stig_010379_remove_nested_includes | bool
+  register: stig_010379_nested_removed
+
+- name: RHEL-08-010379 | Report nested includes left for human review
+  ansible.builtin.debug:
+    msg: >-
+      Nested include directives remain under /etc/sudoers.d and are a finding.
+      They are not removed automatically: one of them may be the file granting
+      this automation its own sudo rights. Review, then set
+      stig_010379_remove_nested_includes=true. Found:
+      {{ stig_010379_nested.stdout_lines }}
+  when:
+    - stig_010379_nested.stdout_lines | default([]) | length > 0
+    - not (stig_010379_remove_nested_includes | bool)
+
+- name: RHEL-08-010379 | Determine whether findings remain
+  ansible.builtin.set_fact:
+    stig_010379_unresolved: >-
+      {{ (stig_010379_nested.stdout_lines | default([]) | length > 0)
+         and not (stig_010379_remove_nested_includes | bool) }}
+
+- name: RHEL-08-010379 | Record result
+  ansible.builtin.include_tasks: record.yml
+  vars:
+    _stig_id: RHEL-08-010379
+    _status: "{{ stig_010379_unresolved | bool | ternary('Open', 'NotAFinding') }}"
+    _changed: "{{ stig_010379.changed | default(false) }}"
+    _detail: >-
+      /etc/sudoers includes: {{ stig_010379_includes.stdout_lines | default(['none']) | join('; ') }}.
+      {{ stig_010379_unresolved | bool
+         | ternary('Nested includes require manual review: ' ~ (stig_010379_nested.stdout_lines | join('; ')),
+                   'No nested includes under /etc/sudoers.d.') }}

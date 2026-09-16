@@ -1,0 +1,153 @@
+---
+# ============================================================================
+# rhel8_stig_cat2 - RHEL 8 STIG V2R8 CAT II remediation
+# ============================================================================
+# Every control has its own enable flag so a system owner can stage the rollout
+# and so an accepted risk can be turned off in inventory rather than by forking
+# the role. Controls that need org data or ISSO approval default to false.
+
+# ---------------------------------------------------------------------------
+# Global behaviour
+# ---------------------------------------------------------------------------
+# Audit-only: gather and report state, converge nothing. Same effect as
+# --check, but usable in a pipeline that must not pass --check to other roles.
+stig_audit_only: false
+
+# Write a per-host JSON evidence file the Python reporter turns into a POA&M.
+stig_write_evidence: true
+stig_evidence_dir: /var/log/stig
+
+# Back up every file the role rewrites, next to the original.
+stig_backup: true
+
+# Change-management reference for this run. Passed in by the pipeline and
+# recorded in the evidence document, so the artifact answers "who authorized
+# this change" without a separate lookup.
+stig_change_ticket: ""
+
+# ---------------------------------------------------------------------------
+# RHEL-08-010019 | vendor package signing keys
+# ---------------------------------------------------------------------------
+stig_010019_enabled: true
+stig_010019_keyfile: /etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release
+# Reinstall redhat-release to restore a missing key file. Needs a reachable repo.
+stig_010019_allow_pkg_reinstall: true
+# Vendor fingerprints, https://access.redhat.com/security/team/key
+# release key 2 and auxiliary key. Do not edit without checking that page.
+stig_010019_expected_fingerprints:
+  - "567E347AD0044ADE55BA8A5F199E2F91FD431D51"
+  - "6A6AA7C97C8890AEC6AEBFE2F76F66C3D4082792"
+
+# ---------------------------------------------------------------------------
+# RHEL-08-010358 | mail transport for configuration-change notification
+# ---------------------------------------------------------------------------
+stig_010358_enabled: true
+# s-nail is an accepted substitute for mailx per the check text.
+stig_010358_package: mailx
+
+# ---------------------------------------------------------------------------
+# RHEL-08-010379 | sudoers include directive
+# ---------------------------------------------------------------------------
+stig_010379_enabled: true
+# Nested includes under /etc/sudoers.d are reported by default. Set true only
+# after a human has read the report - deleting the wrong include can strip the
+# privilege path this role runs through.
+stig_010379_remove_nested_includes: false
+
+# ---------------------------------------------------------------------------
+# RHEL-08-010385 | no password bypass for privilege escalation
+# ---------------------------------------------------------------------------
+stig_010385_enabled: true
+
+# ---------------------------------------------------------------------------
+# RHEL-08-010455 | elevate SELinux context on sudo    [GATED]
+# ---------------------------------------------------------------------------
+# Requires an org-defined administrator group that already exists on the host.
+stig_010455_enabled: false
+stig_010455_admin_group: ""          # e.g. "sysadmins" -> %sysadmins
+stig_010455_sudoers_file: /etc/sudoers.d/stig_selinux_admins
+
+# ---------------------------------------------------------------------------
+# RHEL-08-020035 | terminate idle sessions (RHEL 8.7+)
+# ---------------------------------------------------------------------------
+stig_020035_enabled: true
+stig_020035_stop_idle_session_sec: 600
+# Cloud-hosted systems that satisfy V-244525 via ClientAliveInterval are exempt.
+stig_020035_cloud_hosted: false
+
+# ---------------------------------------------------------------------------
+# RHEL-08-020101 | pam_pwquality enabled in system-auth
+# ---------------------------------------------------------------------------
+stig_020101_enabled: true
+# Name of the authselect custom profile to create/maintain. RHEL 8 regenerates
+# /etc/pam.d/system-auth from this profile, so this is the only durable edit.
+stig_020101_authselect_profile: stig
+# Fall back to editing /etc/pam.d/system-auth directly when authselect is not in
+# use on the host (rare - typically hosts converted from RHEL 7).
+stig_020101_allow_direct_pam_edit: true
+
+# ---------------------------------------------------------------------------
+# RHEL-08-020104 | pwquality retry (RHEL 8.4+)
+# ---------------------------------------------------------------------------
+stig_020104_enabled: true
+stig_020104_retry: 3
+
+# ---------------------------------------------------------------------------
+# RHEL-08-020360 | TMOUT for interactive shells
+# ---------------------------------------------------------------------------
+stig_020360_enabled: true
+stig_020360_tmout: 600
+stig_020360_file: /etc/profile.d/tmout.sh
+# `declare -xr` makes TMOUT readonly. Re-sourcing /etc/profile in an already
+# logged-in shell then prints "TMOUT: readonly variable". A new shell is
+# unaffected. Set true to add a re-entrancy guard; some strict scanners want
+# the bare line at column 0, so this stays false by default.
+stig_020360_reentrant_guard: false
+
+# ---------------------------------------------------------------------------
+# RHEL-08-030655 | audit cron scripts
+# ---------------------------------------------------------------------------
+stig_030655_enabled: true
+stig_030655_rules_file: /etc/audit/rules.d/50-stig-cronjobs.rules
+
+# ---------------------------------------------------------------------------
+# RHEL-08-040221 / 040222 / 040287 | kernel network parameters
+# ---------------------------------------------------------------------------
+stig_040221_enabled: true
+stig_040222_enabled: true
+stig_040287_enabled: true
+stig_sysctl_martians_file: /etc/sysctl.d/ipv4_log_martians.conf
+stig_sysctl_rpfilter_file: /etc/sysctl.d/ipv4_rp_filter.conf
+# `default.*` only affects interfaces created after the change. Set true to push
+# rp_filter onto already-configured interfaces too. Leave false on any host with
+# asymmetric routing (multi-homed, VPN concentrators, routers).
+stig_040287_apply_to_existing_interfaces: false
+# STIG scanners fail a host that sets the same key twice with different values.
+# This finds conflicting definitions in lower-precedence files and reports them.
+stig_sysctl_report_conflicts: true
+
+# ---------------------------------------------------------------------------
+# RHEL-08-040321 | default systemd target    [GATED]
+# ---------------------------------------------------------------------------
+stig_040321_enabled: true
+# Set true on hosts with an ISSO-documented GUI requirement; record the approval
+# reference so it lands in the evidence artifact instead of looking like a miss.
+stig_040321_gui_approved: false
+stig_040321_gui_approval_ref: ""
+
+# ---------------------------------------------------------------------------
+# RHEL-08-040400 | SELinux confined user mappings    [GATED]
+# ---------------------------------------------------------------------------
+stig_040400_enabled: false
+# Mapping an admin to sysadm_u blocks their SSH login unless ssh_sysadm_login is
+# on, which needs its own ISSO documentation. Prefer staff_u for admins who must
+# reach the host over SSH.
+stig_040400_logins: []
+#   - login: jsmith
+#     seuser: staff_u
+#     serange: "s0-s0:c0.c1023"
+# Map the catch-all __default__ login to user_u. This is the highest-blast-radius
+# task in the role: it changes the SELinux user of every account not explicitly
+# mapped, including future ones. Stage it on a non-production host first.
+stig_040400_set_default_user_u: false
+stig_040400_ssh_sysadm_login: false

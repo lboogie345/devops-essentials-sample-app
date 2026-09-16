@@ -1,0 +1,95 @@
+---
+# RHEL-08-040400 | Nonprivileged users must be mapped to confined SELinux users.
+#
+# GATED, and deliberately the most conservative file in the role. The mapping
+# list is per-account organizational data, not a system setting - there is no
+# safe default. Two specific hazards:
+#   - an account mapped to sysadm_u cannot log in over SSH unless the
+#     ssh_sysadm_login boolean is on, which itself needs ISSO documentation
+#   - remapping __default__ to user_u changes the SELinux user of every account
+#     that is not explicitly mapped, including service and future accounts
+
+- name: RHEL-08-040400 | Report that the control is not configured
+  ansible.builtin.debug:
+    msg: >-
+      RHEL-08-040400 is gated and not enabled. Supply stig_040400_logins from the
+      system's authorized-user list and set stig_040400_enabled=true. Administrators
+      belong in sysadm_u or staff_u, everyone else in user_u.
+  when: not (stig_040400_enabled | bool)
+
+- name: RHEL-08-040400 | Record the unconfigured state
+  ansible.builtin.include_tasks: record.yml
+  vars:
+    _stig_id: RHEL-08-040400
+    _status: Open
+    _detail: >-
+      Gated control not enabled. Requires the organization's authorized-user list
+      to be mapped to confined SELinux users via semanage login.
+  when: not (stig_040400_enabled | bool)
+
+- name: RHEL-08-040400 | Apply SELinux login mappings
+  when: stig_040400_enabled | bool
+  block:
+    - name: RHEL-08-040400 | Require SELinux to be enabled before mapping users
+      ansible.builtin.assert:
+        that:
+          - stig_selinux_enabled | bool
+        fail_msg: >-
+          SELinux is not enabled on this host. Confined user mappings would have
+          no effect and would create a false compliance record.
+
+    - name: RHEL-08-040400 | Read the current login mappings
+      ansible.builtin.command:
+        cmd: semanage login -l
+      register: stig_040400_current
+      changed_when: false
+      check_mode: false
+
+    - name: RHEL-08-040400 | Map authorized users to confined SELinux users
+      community.general.selogin:
+        login: "{{ item.login }}"
+        seuser: "{{ item.seuser }}"
+        serange: "{{ item.serange | default('s0-s0:c0.c1023') }}"
+        state: present
+        reload: true
+      loop: "{{ stig_040400_logins }}"
+      loop_control:
+        label: "{{ item.login }} -> {{ item.seuser }}"
+      register: stig_040400
+      when: not (stig_audit_only | bool)
+
+    - name: RHEL-08-040400 | Map the default login to user_u
+      community.general.selogin:
+        login: __default__
+        seuser: user_u
+        serange: "s0-s0:c0.c1023"
+        state: present
+        reload: true
+      register: stig_040400_default
+      when:
+        - stig_040400_set_default_user_u | bool
+        - not (stig_audit_only | bool)
+
+    - name: RHEL-08-040400 | Permit SSH login for sysadm_u accounts
+      ansible.posix.seboolean:
+        name: ssh_sysadm_login
+        state: true
+        persistent: true
+      when:
+        - stig_040400_ssh_sysadm_login | bool
+        - not (stig_audit_only | bool)
+
+    - name: RHEL-08-040400 | Record result
+      ansible.builtin.include_tasks: record.yml
+      vars:
+        _stig_id: RHEL-08-040400
+        _status: NotAFinding
+        _changed: >-
+          {{ (stig_040400.changed | default(false))
+             or (stig_040400_default.changed | default(false)) }}
+        _detail: >-
+          {{ stig_040400_logins | length }} login mapping(s) applied;
+          __default__ {{ stig_040400_set_default_user_u | ternary('mapped to user_u', 'left unchanged') }};
+          ssh_sysadm_login {{ stig_040400_ssh_sysadm_login | ternary('enabled (requires ISSO documentation)', 'not enabled') }}.
+          The assessor still compares these mappings against the system's
+          authorized-user list, which automation cannot supply.

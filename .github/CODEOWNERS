@@ -1,0 +1,15 @@
+# Security baseline content requires security engineering review. This is the
+# technical half of the change-control gate; the GitHub environment's required
+# reviewers are the other half.
+#
+# Replace these placeholder teams with real ones before enabling branch
+# protection, or the rules silently match nobody.
+
+/ansible/roles/rhel8_stig_cat2/   @your-org/platform-security @your-org/linux-engineering
+/ansible/controls/               @your-org/platform-security @your-org/isso
+/scripts/stig/                   @your-org/platform-security
+/.github/workflows/stig-*.yml    @your-org/platform-security @your-org/devops
+
+# Inventory group_vars decide which controls are on for which tier. A change
+# here is a change to the security posture of a whole tier.
+/ansible/inventory/group_vars/   @your-org/platform-security @your-org/isso

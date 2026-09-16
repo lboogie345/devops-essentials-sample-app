@@ -1,0 +1,15 @@
+---
+# Internal constants. Override in defaults/main.yml or inventory, not here.
+
+# Accepted mail packages for RHEL-08-010358.
+stig_mail_packages:
+  - mailx
+  - s-nail
+
+# Audit watch rules required by RHEL-08-030655, exactly as the fix text states.
+stig_cron_audit_rules:
+  - "-w /etc/cron.d/ -p wa -k cronjobs"
+  - "-w /var/spool/cron/ -p wa -k cronjobs"
+
+# Collected at run time by each task file; drained into the evidence artifact.
+stig_results: []

@@ -1,0 +1,85 @@
+---
+# Contract test for the seam between the role and the Python reporter.
+#
+# The role's task files cannot run outside a real RHEL 8 host, but the piece
+# most likely to break silently is the evidence document: rename a key in
+# record.yml and the reporter keeps running, just with every control reported
+# Not_Reviewed. That failure looks like a compliance result, which is the worst
+# kind of bug in this repository.
+#
+# This exercises record.yml and evidence.yml on the control node with synthetic
+# results, then CI feeds the output to scripts/stig/report.py. If the schema
+# drifts, the reporter rejects it and the pipeline fails.
+- name: Evidence contract test
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  become: false
+  vars:
+    stig_write_evidence: true
+    stig_audit_only: false
+    stig_evidence_dir: "{{ lookup('env', 'STIG_TEST_DIR') | default('/tmp/stig-contract', true) }}"
+    stig_evidence_fetch: false
+    stig_benchmark: "RHEL 8 STIG V2R8 (2026-07-01) CAT II"
+    stig_run_id: contract-test
+    stig_reboot_required: false
+    stig_results: []
+  tasks:
+    - name: Record a compliant control
+      ansible.builtin.include_tasks: ../roles/rhel8_stig_cat2/tasks/record.yml
+      vars:
+        _stig_id: RHEL-08-040221
+        _status: NotAFinding
+        _changed: true
+        _detail: "net.ipv4.conf.all.log_martians=1"
+
+    - name: Record an open control that needs a reboot
+      ansible.builtin.include_tasks: ../roles/rhel8_stig_cat2/tasks/record.yml
+      vars:
+        _stig_id: RHEL-08-030655
+        _status: Open
+        _reboot: true
+        _detail: "auditd is in immutable mode; rules load at next boot"
+
+    - name: Record a non-applicable control
+      ansible.builtin.include_tasks: ../roles/rhel8_stig_cat2/tasks/record.yml
+      vars:
+        _stig_id: RHEL-08-020035
+        _status: Not_Applicable
+        _detail: "Requirement applies to RHEL 8.7 and newer"
+
+    - name: Assert every recorded field survived the round trip
+      ansible.builtin.assert:
+        that:
+          - stig_results | length == 3
+          - stig_results[0].stig_id == 'RHEL-08-040221'
+          - stig_results[0].status == 'NotAFinding'
+          - stig_results[0].changed | bool
+          - not (stig_results[0].reboot_required | bool)
+          - stig_results[1].status == 'Open'
+          - stig_results[1].reboot_required | bool
+          - stig_results[2].status == 'Not_Applicable'
+        fail_msg: >-
+          record.yml no longer produces the fields the evidence schema declares.
+          Update scripts/stig/report.py and bump the schema version together.
+
+    - name: Write the evidence document through the role's own task file
+      ansible.builtin.include_tasks: ../roles/rhel8_stig_cat2/tasks/evidence.yml
+
+    - name: Read the document back
+      ansible.builtin.slurp:
+        src: "{{ stig_evidence_dir }}/{{ inventory_hostname }}-stig-cat2.json"
+      register: stig_contract_doc
+
+    - name: Assert the document matches the schema the reporter expects
+      ansible.builtin.assert:
+        that:
+          - _doc.schema == 'stig-evidence/v1'
+          - _doc.results | length == 3
+          - _doc.reboot_required | bool
+          - _doc.benchmark is search('V2R8')
+        fail_msg: >-
+          The evidence document does not match stig-evidence/v1. scripts/stig/report.py
+          rejects unknown schemas by design; change both sides in the same commit.
+      vars:
+        _doc: "{{ stig_contract_doc.content | b64decode | from_json }}"

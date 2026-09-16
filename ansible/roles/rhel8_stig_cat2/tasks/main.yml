@@ -1,0 +1,71 @@
+---
+- name: Run preflight checks and gather STIG-relevant facts
+  ansible.builtin.include_tasks: preflight.yml
+  tags: [always]
+
+- name: RHEL-08-010019 | Cryptographic verification of vendor packages
+  ansible.builtin.include_tasks: RHEL-08-010019.yml
+  when: stig_010019_enabled | bool
+  tags: [stig, cat2, RHEL-08-010019, V-256973]
+
+- name: RHEL-08-010358 | Email notification of configuration changes
+  ansible.builtin.include_tasks: RHEL-08-010358.yml
+  when: stig_010358_enabled | bool
+  tags: [stig, cat2, RHEL-08-010358, V-256974]
+
+- name: RHEL-08-010379 | Default sudoers include directory
+  ansible.builtin.include_tasks: RHEL-08-010379.yml
+  when: stig_010379_enabled | bool
+  tags: [stig, cat2, RHEL-08-010379, V-251711, sudo]
+
+- name: RHEL-08-010385 | No password bypass for privilege escalation
+  ansible.builtin.include_tasks: RHEL-08-010385.yml
+  when: stig_010385_enabled | bool
+  tags: [stig, cat2, RHEL-08-010385, V-251712, sudo]
+
+- name: RHEL-08-010455 | Elevate SELinux context on sudo
+  ansible.builtin.include_tasks: RHEL-08-010455.yml
+  tags: [stig, cat2, RHEL-08-010455, V-272484, sudo, selinux, gated]
+
+- name: RHEL-08-020035 | Terminate idle user sessions
+  ansible.builtin.include_tasks: RHEL-08-020035.yml
+  when: stig_020035_enabled | bool
+  tags: [stig, cat2, RHEL-08-020035, V-257258]
+
+- name: RHEL-08-020101 | pam_pwquality enabled in system-auth
+  ansible.builtin.include_tasks: RHEL-08-020101.yml
+  when: stig_020101_enabled | bool
+  tags: [stig, cat2, RHEL-08-020101, V-251713, pam]
+
+- name: RHEL-08-020104 | pwquality retry limit
+  ansible.builtin.include_tasks: RHEL-08-020104.yml
+  when: stig_020104_enabled | bool
+  tags: [stig, cat2, RHEL-08-020104, V-251716, pam]
+
+- name: RHEL-08-020360 | Idle interactive shell timeout
+  ansible.builtin.include_tasks: RHEL-08-020360.yml
+  when: stig_020360_enabled | bool
+  tags: [stig, cat2, RHEL-08-020360, V-279929]
+
+- name: RHEL-08-030655 | Audit cron scripts and executables
+  ansible.builtin.include_tasks: RHEL-08-030655.yml
+  when: stig_030655_enabled | bool
+  tags: [stig, cat2, RHEL-08-030655, V-274877, audit]
+
+- name: RHEL-08-040221/040222/040287 | Kernel network parameters
+  ansible.builtin.include_tasks: sysctl_network.yml
+  tags: [stig, cat2, RHEL-08-040221, RHEL-08-040222, RHEL-08-040287, sysctl]
+
+- name: RHEL-08-040321 | Non-graphical default target
+  ansible.builtin.include_tasks: RHEL-08-040321.yml
+  when: stig_040321_enabled | bool
+  tags: [stig, cat2, RHEL-08-040321, V-251718, gated]
+
+- name: RHEL-08-040400 | SELinux confined user mappings
+  ansible.builtin.include_tasks: RHEL-08-040400.yml
+  tags: [stig, cat2, RHEL-08-040400, V-254520, selinux, gated]
+
+- name: Write compliance evidence artifact
+  ansible.builtin.include_tasks: evidence.yml
+  when: stig_write_evidence | bool
+  tags: [always, evidence]

@@ -1,0 +1,11 @@
+#!/bin/bash
+# {{ ansible_managed }}
+# DISA STIG RHEL-08-020360 (V-279929).
+# Terminates an idle interactive shell after {{ stig_020360_tmout }} seconds.
+# Managed by Ansible - local edits are overwritten on the next run.
+{% if stig_020360_reentrant_guard %}
+# Guard: re-sourcing /etc/profile in a live shell would otherwise fail with
+# "TMOUT: readonly variable".
+[ -n "${TMOUT:-}" ] || \
+{% endif %}
+declare -xr TMOUT={{ stig_020360_tmout }}

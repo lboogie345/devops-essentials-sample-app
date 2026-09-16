@@ -1,0 +1,8 @@
+---
+# Pinned so a pipeline run in six months enforces the same benchmark the change
+# ticket was approved against. Bump deliberately, in a reviewed PR.
+collections:
+  - name: ansible.posix
+    version: ">=1.5.4,<3.0.0"
+  - name: community.general
+    version: ">=8.0.0,<12.0.0"

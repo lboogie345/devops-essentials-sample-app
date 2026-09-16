@@ -1,0 +1,25 @@
+---
+# Fleet-wide baseline. Anything here applies to every RHEL 8 host.
+stig_backup: true
+stig_write_evidence: true
+stig_evidence_dir: /var/log/stig
+
+# Automated controls, on everywhere.
+stig_010019_enabled: true
+stig_010358_enabled: true
+stig_010379_enabled: true
+stig_010385_enabled: true
+stig_020035_enabled: true
+stig_020101_enabled: true
+stig_020104_enabled: true
+stig_020360_enabled: true
+stig_030655_enabled: true
+stig_040221_enabled: true
+stig_040222_enabled: true
+stig_040287_enabled: true
+stig_040321_enabled: true
+
+# Gated controls stay off at fleet level. Turn them on per group or per host,
+# in the same PR that records the org data they need.
+stig_010455_enabled: false
+stig_040400_enabled: false

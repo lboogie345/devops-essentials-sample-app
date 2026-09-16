@@ -1,0 +1,14 @@
+---
+# Staging carries the gated controls first. Whatever breaks here is a finding
+# about the change, not an outage.
+stig_010455_enabled: true
+stig_010455_admin_group: sysadmins
+
+stig_040400_enabled: true
+stig_040400_logins:
+  - login: svc_deploy
+    seuser: user_u
+  - login: jsmith
+    seuser: staff_u
+# Left off until the __default__ remap has been exercised on a throwaway host.
+stig_040400_set_default_user_u: false

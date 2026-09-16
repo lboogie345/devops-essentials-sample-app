@@ -1,0 +1,88 @@
+---
+# RHEL-08-010019 | Vendor package-signing keys must be installed and their
+# fingerprints must match the vendor's published values.
+#
+# Automation cannot manufacture a trust anchor. What it can do safely:
+#   - restore the key file from the signed redhat-release package
+#   - import it into the RPM keyring
+#   - verify the fingerprints against values pinned in defaults/main.yml
+# It must never fetch a signing key over the network from an untrusted path,
+# which would defeat the control it is supposed to enforce.
+
+- name: RHEL-08-010019 | Check for the vendor key file
+  ansible.builtin.stat:
+    path: "{{ stig_010019_keyfile }}"
+  register: stig_010019_file
+
+- name: RHEL-08-010019 | Restore the key file from the vendor package
+  ansible.builtin.command:
+    cmd: dnf -y reinstall redhat-release
+  register: stig_010019_reinstall
+  changed_when: stig_010019_reinstall.rc == 0
+  failed_when: false
+  when:
+    - not stig_010019_file.stat.exists
+    - stig_010019_allow_pkg_reinstall | bool
+    - not (stig_audit_only | bool)
+
+- name: RHEL-08-010019 | Re-check for the vendor key file
+  ansible.builtin.stat:
+    path: "{{ stig_010019_keyfile }}"
+  register: stig_010019_file2
+
+- name: RHEL-08-010019 | Import the vendor keys into the RPM keyring
+  ansible.builtin.rpm_key:
+    key: "{{ stig_010019_keyfile }}"
+    state: present
+  register: stig_010019
+  when:
+    - stig_010019_file2.stat.exists
+    - not (stig_audit_only | bool)
+
+- name: RHEL-08-010019 | Read the fingerprints of the installed vendor keys
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail;
+      gpg -q --keyid-format short --with-colons --with-fingerprint
+      {{ stig_010019_keyfile }} 2>/dev/null
+      | awk -F: '$1=="fpr" {print $10}' || true
+    executable: /bin/bash
+  register: stig_010019_fprs
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: stig_010019_file2.stat.exists
+
+- name: RHEL-08-010019 | List the Red Hat keys present in the RPM keyring
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail;
+      rpm -q --queryformat "%{SUMMARY}\n" gpg-pubkey 2>/dev/null
+      | grep -i "red hat" || true
+    executable: /bin/bash
+  register: stig_010019_keyring
+  changed_when: false
+  check_mode: false
+
+- name: RHEL-08-010019 | Compare the fingerprints against the pinned vendor values
+  ansible.builtin.set_fact:
+    stig_010019_missing: >-
+      {{ stig_010019_expected_fingerprints
+         | difference(stig_010019_fprs.stdout_lines | default([])) }}
+
+- name: RHEL-08-010019 | Record result
+  ansible.builtin.include_tasks: record.yml
+  vars:
+    _stig_id: RHEL-08-010019
+    _status: >-
+      {{ (stig_010019_file2.stat.exists
+          and (stig_010019_missing | length == 0)
+          and (stig_010019_keyring.stdout_lines | default([]) | length >= 2))
+         | ternary('NotAFinding', 'Open') }}
+    _changed: "{{ stig_010019.changed | default(false) }}"
+    _detail: >-
+      Key file {{ stig_010019_file2.stat.exists | ternary('present', 'MISSING - requires installation media, see the fix text') }}.
+      Keyring entries: {{ stig_010019_keyring.stdout_lines | default([]) | join('; ') | default('none', true) }}.
+      {{ (stig_010019_missing | length > 0)
+         | ternary('Expected fingerprints not found on this host: ' ~ (stig_010019_missing | join(', ')),
+                   'Fingerprints match the pinned vendor values.') }}

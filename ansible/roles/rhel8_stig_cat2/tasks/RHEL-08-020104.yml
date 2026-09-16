@@ -1,0 +1,68 @@
+---
+# RHEL-08-020104 | pwquality retry must be 1-3. Applies to RHEL 8.4 and newer.
+#
+# Two files matter. /etc/security/pwquality.conf holds the value, and anything
+# in /etc/security/pwquality.conf.d/ is read afterwards and wins. Setting the
+# main file alone leaves a host that looks compliant in one grep and fails in
+# the other, so conflicting drop-ins are corrected too.
+
+- name: RHEL-08-020104 | Skip on RHEL below 8.4
+  ansible.builtin.include_tasks: record.yml
+  vars:
+    _stig_id: RHEL-08-020104
+    _status: Not_Applicable
+    _detail: "Requirement applies to RHEL 8.4 and newer; host is {{ stig_minor_version }}."
+  when: stig_minor_version is version('8.4', '<')
+
+- name: RHEL-08-020104 | Enforce the retry limit
+  when: stig_minor_version is version('8.4', '>=')
+  block:
+    - name: RHEL-08-020104 | Validate the configured retry value
+      ansible.builtin.assert:
+        that:
+          - stig_020104_retry | int > 0
+          - stig_020104_retry | int <= 3
+        fail_msg: "stig_020104_retry must be between 1 and 3; a value of 0 or >3 is itself a finding."
+
+    - name: RHEL-08-020104 | Set retry in /etc/security/pwquality.conf
+      ansible.builtin.lineinfile:
+        path: /etc/security/pwquality.conf
+        regexp: '^[[:space:]]*#?[[:space:]]*retry[[:space:]]*='
+        line: "retry = {{ stig_020104_retry }}"
+        owner: root
+        group: root
+        mode: "0644"
+        backup: "{{ stig_backup | bool }}"
+      register: stig_020104
+      when: not (stig_audit_only | bool)
+
+    - name: RHEL-08-020104 | Find drop-ins that override retry
+      ansible.builtin.find:
+        paths: /etc/security/pwquality.conf.d
+        patterns: "*.conf"
+        contains: '^[[:space:]]*retry[[:space:]]*='
+      register: stig_020104_dropins
+
+    - name: RHEL-08-020104 | Correct overriding drop-ins
+      ansible.builtin.lineinfile:
+        path: "{{ item.path }}"
+        regexp: '^[[:space:]]*retry[[:space:]]*='
+        line: "retry = {{ stig_020104_retry }}"
+        backup: "{{ stig_backup | bool }}"
+      loop: "{{ stig_020104_dropins.files | default([]) }}"
+      loop_control:
+        label: "{{ item.path }}"
+      register: stig_020104_dropin_fix
+      when: not (stig_audit_only | bool)
+
+    - name: RHEL-08-020104 | Record result
+      ansible.builtin.include_tasks: record.yml
+      vars:
+        _stig_id: RHEL-08-020104
+        _status: NotAFinding
+        _changed: >-
+          {{ (stig_020104.changed | default(false))
+             or (stig_020104_dropin_fix.changed | default(false)) }}
+        _detail: >-
+          retry = {{ stig_020104_retry }} in /etc/security/pwquality.conf;
+          {{ stig_020104_dropins.files | default([]) | length }} drop-in(s) reconciled.

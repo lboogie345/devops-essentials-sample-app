@@ -1,0 +1,44 @@
+---
+# RHEL-08-020360 | Exit interactive shells after 10 minutes of inactivity.
+
+- name: RHEL-08-020360 | Deploy the TMOUT profile script
+  ansible.builtin.template:
+    src: tmout.sh.j2
+    dest: "{{ stig_020360_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+    backup: "{{ stig_backup | bool }}"
+  register: stig_020360
+  when: not (stig_audit_only | bool)
+
+- name: RHEL-08-020360 | Find TMOUT definitions that exceed the limit elsewhere
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail;
+      grep -HsiE '^[[:space:]]*(declare[[:space:]]+-[a-zA-Z]+[[:space:]]+|export[[:space:]]+)?TMOUT='
+      /etc/profile /etc/profile.d/*.sh /etc/bashrc 2>/dev/null
+      | grep -v '^{{ stig_020360_file }}:' || true
+    executable: /bin/bash
+  register: stig_020360_other
+  changed_when: false
+  check_mode: false
+
+- name: RHEL-08-020360 | Report competing TMOUT definitions
+  ansible.builtin.debug:
+    msg: >-
+      Other TMOUT definitions are present and may be evaluated after
+      {{ stig_020360_file }}. A later assignment above {{ stig_020360_tmout }}
+      seconds is still a finding: {{ stig_020360_other.stdout_lines }}
+  when: stig_020360_other.stdout_lines | default([]) | length > 0
+
+- name: RHEL-08-020360 | Record result
+  ansible.builtin.include_tasks: record.yml
+  vars:
+    _stig_id: RHEL-08-020360
+    _status: "{{ (stig_020360_other.stdout_lines | default([]) | length > 0) | ternary('Not_Reviewed', 'NotAFinding') }}"
+    _changed: "{{ stig_020360.changed | default(false) }}"
+    _detail: >-
+      declare -xr TMOUT={{ stig_020360_tmout }} in {{ stig_020360_file }}.
+      {{ (stig_020360_other.stdout_lines | default([]) | length > 0)
+         | ternary('Competing definitions need manual review: ' ~ (stig_020360_other.stdout_lines | join('; ')), '') }}

@@ -1,0 +1,46 @@
+---
+# RHEL-08-030655 | Audit scripts and executables invoked by cron.
+#
+# The rules file is numbered 50- so it loads after the base config and before
+# 99-finalize.rules. If the site sets `-e 2` (immutable) in a finalize file,
+# augenrules --load cannot apply new rules to the running kernel and the host
+# stays Open until it reboots. That is reported, not papered over.
+
+- name: RHEL-08-030655 | Ensure the audit package is present
+  ansible.builtin.dnf:
+    name: audit
+    state: present
+  when: not (stig_audit_only | bool)
+
+- name: RHEL-08-030655 | Install the cron audit watch rules
+  ansible.builtin.copy:
+    src: 50-stig-cronjobs.rules
+    dest: "{{ stig_030655_rules_file }}"
+    owner: root
+    group: root
+    mode: "0600"
+    backup: "{{ stig_backup | bool }}"
+  register: stig_030655
+  when: not (stig_audit_only | bool)
+  notify: stig_auditd_reload
+
+- name: RHEL-08-030655 | Read the rules currently loaded in the kernel
+  ansible.builtin.shell:
+    cmd: "set -o pipefail; auditctl -l | grep -E '/etc/cron\\.d|/var/spool/cron' || true"
+    executable: /bin/bash
+  register: stig_030655_loaded
+  changed_when: false
+  check_mode: false
+
+- name: RHEL-08-030655 | Record result
+  ansible.builtin.include_tasks: record.yml
+  vars:
+    _stig_id: RHEL-08-030655
+    _status: "{{ stig_auditd_immutable | bool | ternary('Open', 'NotAFinding') }}"
+    _changed: "{{ stig_030655.changed | default(false) }}"
+    _reboot: "{{ stig_auditd_immutable | bool }}"
+    _detail: >-
+      Rules written to {{ stig_030655_rules_file }}.
+      {{ stig_auditd_immutable | bool
+         | ternary('auditd is in immutable mode (-e 2); the running kernel keeps the old rule set until reboot.',
+                   'Loaded rules: ' ~ (stig_030655_loaded.stdout_lines | default([]) | join('; '))) }}

@@ -1,0 +1,60 @@
+---
+# RHEL-08-020035 | logind must terminate idle sessions. RHEL 8.7 and newer.
+#
+# Two documented exclusions, both recorded as Not_Applicable rather than
+# skipped silently, so an assessor can see why the host was not remediated:
+#   - RHEL below 8.7 has no StopIdleSessionSec.
+#   - Cloud-hosted systems satisfying V-244525 via ClientAliveInterval.
+#
+# The check text greps /etc/systemd/logind.conf specifically, so the value goes
+# in that file rather than a logind.conf.d drop-in.
+
+- name: RHEL-08-020035 | Record non-applicability on RHEL below 8.7
+  ansible.builtin.include_tasks: record.yml
+  vars:
+    _stig_id: RHEL-08-020035
+    _status: Not_Applicable
+    _detail: "Requirement applies to RHEL 8.7 and newer; host is {{ stig_minor_version }}."
+  when: stig_minor_version is version('8.7', '<')
+
+- name: RHEL-08-020035 | Record non-applicability for cloud-hosted systems
+  ansible.builtin.include_tasks: record.yml
+  vars:
+    _stig_id: RHEL-08-020035
+    _status: Not_Applicable
+    _detail: >-
+      Cloud-hosted system; idle termination is satisfied by ClientAliveInterval
+      (V-244525) per the check text note.
+  when:
+    - stig_minor_version is version('8.7', '>=')
+    - stig_020035_cloud_hosted | bool
+
+- name: RHEL-08-020035 | Terminate idle sessions after the configured interval
+  when:
+    - stig_minor_version is version('8.7', '>=')
+    - not (stig_020035_cloud_hosted | bool)
+  block:
+    - name: RHEL-08-020035 | Set StopIdleSessionSec in logind.conf
+      ansible.builtin.lineinfile:
+        path: /etc/systemd/logind.conf
+        regexp: '^[[:space:]]*#?[[:space:]]*StopIdleSessionSec[[:space:]]*='
+        line: "StopIdleSessionSec={{ stig_020035_stop_idle_session_sec }}"
+        insertafter: '^\[Login\]'
+        owner: root
+        group: root
+        mode: "0644"
+        backup: "{{ stig_backup | bool }}"
+      register: stig_020035
+      notify: stig_logind_restart
+      when: not (stig_audit_only | bool)
+
+    - name: RHEL-08-020035 | Record result
+      ansible.builtin.include_tasks: record.yml
+      vars:
+        _stig_id: RHEL-08-020035
+        _status: NotAFinding
+        _changed: "{{ stig_020035.changed | default(false) }}"
+        _detail: >-
+          StopIdleSessionSec={{ stig_020035_stop_idle_session_sec }} in
+          /etc/systemd/logind.conf. systemd-logind is restarted by handler;
+          the new interval applies to sessions created after the restart.

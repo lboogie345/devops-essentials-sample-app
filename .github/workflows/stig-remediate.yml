@@ -1,0 +1,152 @@
+---
+name: STIG remediate
+
+# Applies the baseline to real hosts. Deliberately manual: an unattended push
+# that silently rewrites sudoers and PAM across a fleet is not a pipeline, it is
+# an incident waiting for a trigger.
+#
+# Controls on this workflow, and why each one is here:
+#   * workflow_dispatch only      - a human names the tier and the change window
+#   * environment: protection     - required reviewers gate production (CM-3)
+#   * dry_run defaults to true    - the safe answer is the default answer
+#   * self-hosted runner          - the fleet is not reachable from GitHub-hosted
+#   * evidence uploaded always    - the artifact is the change record (AU-12)
+on:
+  workflow_dispatch:
+    inputs:
+      tier:
+        description: 'Inventory group to target'
+        required: true
+        type: choice
+        default: rhel8_staging
+        options:
+          - rhel8_staging
+          - rhel8_prod
+      dry_run:
+        description: 'Check mode - report what would change, change nothing'
+        required: true
+        type: boolean
+        default: true
+      serial:
+        description: 'Rolling batch size (hosts or percentage)'
+        required: false
+        type: string
+        default: '25%'
+      limit:
+        description: 'Optional --limit pattern to narrow the run further'
+        required: false
+        type: string
+        default: ''
+      change_ticket:
+        description: 'Change record reference (recorded in the evidence artifact)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  # One remediation at a time per tier. Two overlapping runs against the same
+  # hosts would interleave sudoers and PAM edits.
+  group: stig-remediate-${{ inputs.tier }}
+  cancel-in-progress: false
+
+jobs:
+  remediate:
+    name: ${{ inputs.dry_run && 'Dry run' || 'Apply' }} on ${{ inputs.tier }}
+    runs-on: [self-hosted, linux, ansible-control]
+    # Configure required reviewers on the `stig-rhel8_prod` environment in
+    # Settings -> Environments. That approval is the change-management gate.
+    environment: stig-${{ inputs.tier }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install tooling
+        run: pip install -r scripts/stig/requirements-dev.txt
+
+      - name: Install pinned collections
+        run: ansible-galaxy collection install -r ansible/requirements.yml
+
+      - name: Record the change context
+        run: |
+          {
+            echo "## STIG remediation"
+            echo
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            echo "| Tier | \`${{ inputs.tier }}\` |"
+            echo "| Mode | ${{ inputs.dry_run && 'check (no changes)' || 'apply' }} |"
+            echo "| Batch | \`${{ inputs.serial }}\` |"
+            echo "| Change record | ${{ inputs.change_ticket }} |"
+            echo "| Requested by | @${{ github.actor }} |"
+            echo "| Commit | \`${{ github.sha }}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Write the SSH key for the automation account
+        env:
+          SSH_KEY: ${{ secrets.ANSIBLE_SSH_PRIVATE_KEY }}
+          KNOWN_HOSTS: ${{ secrets.ANSIBLE_KNOWN_HOSTS }}
+        run: |
+          install -d -m 0700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_stig
+          chmod 0600 ~/.ssh/id_stig
+          # host_key_checking stays on; the fleet's host keys are supplied here
+          # rather than disabled, so a spoofed host fails the connection.
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 0644 ~/.ssh/known_hosts
+
+      - name: Run the baseline
+        working-directory: ansible
+        env:
+          ANSIBLE_PRIVATE_KEY_FILE: ~/.ssh/id_stig
+          ANSIBLE_VAULT_PASSWORD_FILE: /etc/ansible/vault-pass
+          STIG_EVIDENCE_DIR: ${{ github.workspace }}/evidence
+        run: |
+          set -o pipefail
+          ansible-playbook remediate.yml \
+            --extra-vars "stig_target=${{ inputs.tier }}" \
+            --extra-vars "stig_serial=${{ inputs.serial }}" \
+            --extra-vars "stig_change_ticket=${{ inputs.change_ticket }}" \
+            ${{ inputs.limit && format('--limit {0}', inputs.limit) || '' }} \
+            ${{ inputs.dry_run && '--check --diff' || '' }} \
+            | tee "${{ runner.temp }}/ansible.log"
+
+      - name: Build the compliance report
+        if: always()
+        run: |
+          python scripts/stig/report.py evidence \
+            --controls ansible/controls/rhel8_cat2_controls.yml \
+            --markdown "${{ runner.temp }}/summary.md" \
+            --poam evidence/poam.csv \
+            --junit evidence/junit.xml \
+            --exit-zero
+          cat "${{ runner.temp }}/summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the evidence package
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stig-evidence-${{ inputs.tier }}-${{ github.run_id }}
+          path: |
+            evidence/
+            ${{ runner.temp }}/ansible.log
+          # Assessment evidence outlives the sprint that produced it.
+          retention-days: 90
+
+      - name: Remove the SSH key from the runner
+        if: always()
+        run: rm -f ~/.ssh/id_stig
+
+      - name: Fail the run on open findings after an apply
+        # A dry run is expected to surface findings - that is its job. An apply
+        # that leaves findings open has not finished the work.
+        if: ${{ !inputs.dry_run }}
+        run: |
+          python scripts/stig/report.py evidence \
+            --controls ansible/controls/rhel8_cat2_controls.yml \
+            --markdown /dev/null

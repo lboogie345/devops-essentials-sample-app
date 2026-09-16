@@ -1,0 +1,59 @@
+---
+# RHEL-08-040321 | The graphical display manager must not be the default target
+# unless the ISSO has documented a requirement for it.
+#
+# GATED on approval rather than on the setting. A host with an approved GUI is
+# recorded Not_Applicable with the approval reference attached, which is what
+# an assessor needs to see; silently skipping it looks like a gap in coverage.
+
+- name: RHEL-08-040321 | Read the current default systemd target
+  ansible.builtin.command:
+    cmd: systemctl get-default
+  register: stig_040321_default
+  changed_when: false
+  check_mode: false
+
+- name: RHEL-08-040321 | Record an ISSO-approved graphical target
+  ansible.builtin.include_tasks: record.yml
+  vars:
+    _stig_id: RHEL-08-040321
+    _status: Not_Applicable
+    _detail: >-
+      Default target is {{ stig_040321_default.stdout | trim }}. A graphical user
+      interface is documented with the ISSO under reference
+      "{{ stig_040321_gui_approval_ref | default('UNSPECIFIED', true) }}".
+  when: stig_040321_gui_approved | bool
+
+- name: RHEL-08-040321 | Enforce the multi-user target
+  when: not (stig_040321_gui_approved | bool)
+  block:
+    - name: RHEL-08-040321 | Require an approval reference to be recorded when exempting
+      ansible.builtin.assert:
+        that:
+          - stig_040321_gui_approval_ref | length > 0
+        fail_msg: >-
+          stig_040321_gui_approved is true but no approval reference was supplied.
+          An undocumented exemption is a finding, not an exemption.
+      when: stig_040321_gui_approved | bool
+
+    - name: RHEL-08-040321 | Set the default target to multi-user.target
+      ansible.builtin.command:
+        cmd: systemctl set-default multi-user.target
+      register: stig_040321
+      changed_when: true
+      when:
+        - not (stig_audit_only | bool)
+        - stig_040321_default.stdout | trim != 'multi-user.target'
+
+    - name: RHEL-08-040321 | Record result
+      ansible.builtin.include_tasks: record.yml
+      vars:
+        _stig_id: RHEL-08-040321
+        _status: NotAFinding
+        _changed: "{{ stig_040321.changed | default(false) }}"
+        _reboot: "{{ stig_040321.changed | default(false) }}"
+        _detail: >-
+          Default target was {{ stig_040321_default.stdout | trim }};
+          {{ (stig_040321_default.stdout | trim != 'multi-user.target')
+             | ternary('set to multi-user.target, reboot required to take effect.',
+                       'already compliant.') }}

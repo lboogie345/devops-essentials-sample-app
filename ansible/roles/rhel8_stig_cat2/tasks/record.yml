@@ -1,0 +1,15 @@
+---
+# Appends one CKL-vocabulary result to stig_results.
+# Callers set: _stig_id, _status (NotAFinding|Open|Not_Applicable|Not_Reviewed),
+# and optionally _changed, _detail, _reboot.
+- name: Record control result
+  ansible.builtin.set_fact:
+    stig_results: "{{ stig_results + [_stig_record] }}"
+  vars:
+    _stig_record:
+      stig_id: "{{ _stig_id }}"
+      status: "{{ _status }}"
+      changed: "{{ _changed | default(false) | bool }}"
+      detail: "{{ _detail | default('') }}"
+      reboot_required: "{{ _reboot | default(false) | bool }}"
+      audit_only: "{{ stig_audit_only | bool }}"

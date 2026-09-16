@@ -1,0 +1,52 @@
+---
+# Emits one machine-readable evidence document per host. scripts/stig/report.py
+# turns these into the POA&M, the Markdown job summary and the JUnit result the
+# pipeline gates on. Keeping evidence generation inside the same run that made
+# the changes is what makes the artifact defensible: it is a record of what this
+# execution observed, not a later re-interpretation of log text.
+
+- name: Evidence | Ensure the evidence directory exists
+  ansible.builtin.file:
+    path: "{{ stig_evidence_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Evidence | Write the per-host compliance document
+  ansible.builtin.copy:
+    content: "{{ stig_evidence | to_nice_json }}"
+    dest: "{{ stig_evidence_dir }}/{{ inventory_hostname }}-stig-cat2.json"
+    owner: root
+    group: root
+    mode: "0640"
+  vars:
+    stig_evidence:
+      schema: stig-evidence/v1
+      host: "{{ inventory_hostname }}"
+      fqdn: "{{ ansible_facts['fqdn'] | default(inventory_hostname) }}"
+      os: "{{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}"
+      benchmark: "{{ stig_benchmark }}"
+      run_id: "{{ stig_run_id | default('local') }}"
+      change_ticket: "{{ stig_change_ticket | default('') }}"
+      run_started: "{{ ansible_date_time.iso8601 }}"
+      audit_only: "{{ stig_audit_only | bool }}"
+      check_mode: "{{ ansible_check_mode }}"
+      reboot_required: "{{ stig_reboot_required | bool or (stig_results | selectattr('reboot_required') | list | length > 0) }}"
+      results: "{{ stig_results }}"
+
+- name: Evidence | Retrieve the document to the control node
+  ansible.builtin.fetch:
+    src: "{{ stig_evidence_dir }}/{{ inventory_hostname }}-stig-cat2.json"
+    dest: "{{ stig_evidence_fetch_dir | default('./evidence') }}/"
+    flat: true
+  when: stig_evidence_fetch | default(true) | bool
+
+- name: Evidence | Summarize the run
+  ansible.builtin.debug:
+    msg: >-
+      {{ inventory_hostname }}:
+      {{ stig_results | selectattr('status', 'equalto', 'NotAFinding') | list | length }} NotAFinding,
+      {{ stig_results | selectattr('status', 'equalto', 'Open') | list | length }} Open,
+      {{ stig_results | selectattr('status', 'equalto', 'Not_Applicable') | list | length }} Not_Applicable,
+      {{ stig_results | selectattr('status', 'equalto', 'Not_Reviewed') | list | length }} Not_Reviewed.

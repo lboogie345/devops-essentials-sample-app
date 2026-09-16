@@ -1,0 +1,5 @@
+## DISA STIG RHEL-08-030655 (V-274877)
+## Audit any script or executable called by cron as root or a privileged user.
+## Managed by Ansible - local edits are overwritten on the next run.
+-w /etc/cron.d/ -p wa -k cronjobs
+-w /var/spool/cron/ -p wa -k cronjobs
