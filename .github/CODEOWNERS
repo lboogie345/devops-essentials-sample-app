@@ -10,6 +10,12 @@
 /scripts/stig/                   @your-org/platform-security
 /.github/workflows/stig-*.yml    @your-org/platform-security @your-org/devops
 
+# The AAP configuration decides who may run what, which controls need an
+# approval node, and what is allowed to run on a schedule. A change here is a
+# change to the enforcement of separation of duties.
+/aap/                            @your-org/platform-security @your-org/aap-admins
+/aap/controller/rbac.yml         @your-org/platform-security @your-org/isso
+
 # Inventory group_vars decide which controls are on for which tier. A change
 # here is a change to the security posture of a whole tier.
 /ansible/inventory/group_vars/   @your-org/platform-security @your-org/isso

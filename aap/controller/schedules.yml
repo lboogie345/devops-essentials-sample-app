@@ -1,0 +1,21 @@
+---
+# Continuous monitoring, in the NIST CA-7 sense. A baseline applied once and
+# never re-checked is a point-in-time assertion; a recurring read-only audit is
+# a control.
+#
+# Only the audit is scheduled. Nothing that modifies a host runs on a timer -
+# remediation is always launched by a human against a change record.
+controller_schedules:
+  - name: STIG CAT II - Nightly audit
+    unified_job_template: STIG CAT II - Audit
+    rrule: "DTSTART;TZID=America/New_York:20260101T060000 RRULE:FREQ=DAILY;INTERVAL=1"
+    description: Read-only drift detection across the whole fleet.
+    extra_data:
+      stig_target: rhel8
+    enabled: true
+
+  - name: STIG CAT II - Weekly evidence package
+    unified_job_template: STIG CAT II - Evidence Report
+    rrule: "DTSTART;TZID=America/New_York:20260104T070000 RRULE:FREQ=WEEKLY;BYDAY=SU"
+    description: Renders the POA&M and compliance summary for the assessment package.
+    enabled: true

@@ -1,9 +1,24 @@
 ---
+# ============================================================================
+# SUPERSEDED by Ansible Automation Platform. See docs/AAP-INTEGRATION.md.
+# ============================================================================
+# Execution now lives in AAP, which has the credential isolation, the RBAC and
+# the approval nodes that GitHub Actions cannot provide for a managed fleet.
+#
+# This workflow is kept, DISABLED, for sites running the baseline without AAP.
+# Do not enable it alongside AAP: two schedulers converging the same hosts with
+# different credentials and no shared approval record is worse than either one
+# alone. Pick one.
+#
+# To use this instead of AAP, restore the trigger noted below.
+
 name: STIG remediate
 
-# Applies the baseline to real hosts. Deliberately manual: an unattended push
-# that silently rewrites sudoers and PAM across a fleet is not a pipeline, it is
-# an incident waiting for a trigger.
+# Applies the baseline to real hosts. Already manual-only; under AAP the
+# equivalent is the `STIG CAT II - Staged Rollout` workflow, which adds what
+# this cannot: approval nodes recorded against a named human, credential
+# injection that never renders the key back out, and an Approvers team that
+# holds no execute role.
 #
 # Controls on this workflow, and why each one is here:
 #   * workflow_dispatch only      - a human names the tier and the change window

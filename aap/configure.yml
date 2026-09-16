@@ -1,0 +1,52 @@
+---
+# Apply the controller configuration in this directory to an AAP instance.
+#
+# Configuration as code, for the same reason the baseline itself is code: a job
+# template edited in the AAP web UI has no diff, no reviewer and no history. A
+# survey that quietly gained a "skip approval" option is exactly the change that
+# needs a pull request.
+#
+#   ansible-galaxy collection install -r aap/requirements.yml
+#   export CONTROLLER_HOST=https://aap.example.mil
+#   export CONTROLLER_OAUTH_TOKEN=...          # or CONTROLLER_USERNAME/PASSWORD
+#   ansible-playbook aap/configure.yml --check     # review first
+#   ansible-playbook aap/configure.yml
+- name: Configure AAP for the RHEL 8 STIG CAT II baseline
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    # Read from the environment so no endpoint or token lands in git.
+    controller_host: "{{ lookup('env', 'CONTROLLER_HOST') }}"
+    controller_oauthtoken: "{{ lookup('env', 'CONTROLLER_OAUTH_TOKEN') }}"
+    controller_validate_certs: true
+
+  pre_tasks:
+    - name: Require the controller endpoint and a token
+      ansible.builtin.assert:
+        that:
+          - controller_host | length > 0
+          - controller_oauthtoken | length > 0
+        fail_msg: >-
+          Set CONTROLLER_HOST and CONTROLLER_OAUTH_TOKEN. Never put them in this
+          file - it is world-readable to everyone with repository access.
+
+    - name: Load the controller object definitions
+      ansible.builtin.include_vars:
+        dir: "{{ playbook_dir }}/controller"
+        extensions: [yml]
+
+  roles:
+    # Order matters: objects are created before the things that reference them.
+    - infra.controller_configuration.organizations
+    - infra.controller_configuration.credentials
+    - infra.controller_configuration.credential_input_sources
+    - infra.controller_configuration.projects
+    - infra.controller_configuration.inventories
+    - infra.controller_configuration.inventory_sources
+    - infra.controller_configuration.job_templates
+    - infra.controller_configuration.workflow_job_templates
+    - infra.controller_configuration.schedules
+    - infra.controller_configuration.notification_templates
+    - infra.controller_configuration.teams
+    - infra.controller_configuration.roles

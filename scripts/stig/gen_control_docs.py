@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import difflib
+import re
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -44,6 +45,31 @@ DEFAULT_EXPORTS = [Path("ansible/controls/disa-exports")]
 DEFAULT_MANIFEST = Path("ansible/controls/rhel8_cat2_controls.yml")
 DEFAULT_OUTPUT = Path("docs/CONTROL-REFERENCE.md")
 TASKS_DIR = Path("ansible/roles/rhel8_stig_cat2/tasks")
+DEFAULTS_FILE = Path("ansible/roles/rhel8_stig_cat2/defaults/main.yml")
+JOB_TEMPLATES = Path("aap/controller/job_templates.yml")
+
+# Which AAP job template applies a control, derived from its remediation
+# category rather than listed per control - the category IS the blast-radius
+# classification, so deriving keeps the two from disagreeing.
+AAP_TEMPLATE = {
+    "automated": "STIG CAT II - Remediate (Automated and Assisted)",
+    "assisted": "STIG CAT II - Remediate (Automated and Assisted)",
+    "gated": "STIG CAT II - Remediate (Gated Control)",
+    "manual": None,
+}
+AAP_APPROVAL = {
+    "automated": "Tier approval node in the staged-rollout workflow.",
+    "assisted": "Tier approval node in the staged-rollout workflow.",
+    "gated": "**Dedicated approval node, one control per launch.**",
+    "manual": "Not applicable - no remediation template exists.",
+}
+# Owner paths from .github/CODEOWNERS, for the review-gate column.
+CODEOWNERS = {
+    "ansible/roles/": "@your-org/platform-security @your-org/linux-engineering",
+    "ansible/controls/": "@your-org/platform-security @your-org/isso",
+    "ansible/inventory/group_vars/": "@your-org/platform-security @your-org/isso",
+    "scripts/stig/": "@your-org/platform-security",
+}
 
 REMEDIATION_LABEL = {
     "automated": "Automated - the role enforces this with no human decision required.",
@@ -99,6 +125,58 @@ def find_task_file(stig_id: str, tasks_dir: Path) -> Path | None:
     return None
 
 
+def load_role_defaults(path: Path) -> dict[str, object]:
+    """Read the role's tunables so each control can list the ones that steer it."""
+    try:
+        return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except (OSError, yaml.YAMLError):
+        # Missing defaults should degrade the document, not break the build.
+        return {}
+
+
+def control_variables(
+    stig_id: str, task_file: Path | None, defaults: dict[str, object]
+) -> list[tuple[str, object]]:
+    """Derive the tunables that steer one control.
+
+    Two sources, because neither alone is right:
+
+      * any default whose name carries this control's six-digit ID. This catches
+        `stig_040137_enforce` wherever it is referenced, including the `when:`
+        in main.yml rather than the task file itself.
+      * any non-numbered default the task file actually references. This catches
+        the shared switches (`stig_audit_only`, `stig_backup`,
+        `stig_mfa_alternate`) without dragging in the *other* controls' settings
+        from a task file that several controls share, like sysctl_network.yml.
+    """
+    digits = stig_id.rsplit("-", 1)[-1]
+    names = {k for k in defaults if digits in k}
+    if task_file is not None:
+        body = task_file.read_text(encoding="utf-8")
+        referenced = set(re.findall(r"\bstig_[a-z0-9_]+", body))
+        names |= {k for k in referenced if k in defaults and not re.search(r"_\d{6}_", k)}
+    return [(k, defaults[k]) for k in sorted(names)]
+
+
+def codeowners_for(path: Path) -> str:
+    # Normalised first: matching on the raw path makes the output depend on
+    # whether the caller passed a relative or absolute tasks directory, which
+    # breaks the --check gate on invocation style rather than real staleness.
+    posix = display_path(path)
+    for prefix, owners in CODEOWNERS.items():
+        if posix.startswith(prefix):
+            return owners
+    return "@your-org/platform-security"
+
+
+def fmt_value(value: object) -> str:
+    if isinstance(value, bool):
+        return "`true`" if value else "`false`"
+    if value == "" or value == [] or value == {}:
+        return "_(unset)_"
+    return f"`{value}`"
+
+
 def load_manifest(path: Path) -> dict[str, dict[str, Any]]:
     try:
         raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
@@ -117,12 +195,14 @@ def render(
     manifest: dict[str, dict[str, Any]],
     tasks_dir: Path,
     export_paths: Sequence[Path],
+    defaults: dict[str, object] | None = None,
 ) -> str:
     checks = sum(1 for c in controls if c.get("check_text"))
     fixes = sum(1 for c in controls if c.get("fix_text"))
     covered = {c["stig_id"]: find_task_file(c["stig_id"], tasks_dir) for c in controls}
     implemented = sum(1 for path in covered.values() if path is not None)
     sources = [display_path(p) for p in export_paths]
+    defaults = defaults if defaults is not None else {}
 
     lines: list[str] = [
         "<!-- GENERATED FILE - DO NOT EDIT BY HAND.",
@@ -206,6 +286,7 @@ def render(
             "",
         ]
 
+        remediation = entry.get("remediation", "")
         if task:
             task_display = display_path(task)
             lines += [
@@ -226,6 +307,57 @@ def render(
         if entry.get("applicability"):
             lines += [f"Applicability: {entry['applicability']}.", ""]
 
+        # ---- GitHub ------------------------------------------------------
+        owners = codeowners_for(task) if task else "@your-org/platform-security"
+        lines += [
+            "#### Mitigation path: GitHub",
+            "",
+            "| | |",
+            "| --- | --- |",
+            f"| Source of truth | [`{display_path(task)}`](../{display_path(task)}) |"
+            if task
+            else "| Source of truth | _no task file_ |",
+            f"| Required reviewers | `{owners}` (CODEOWNERS) |",
+            "| Merge gate | `stig-validate`: ansible-lint (production profile), "
+            "yamllint, playbook syntax, evidence-schema contract, benchmark drift, "
+            "AAP boundary tests |",
+            f"| Risk classification | `{remediation}` / residual risk "
+            f"`{entry.get('risk', 'unknown')}` - reviewed in "
+            "[`rhel8_cat2_controls.yml`](../ansible/controls/rhel8_cat2_controls.yml) |",
+            "| Change record | the merge commit; branch protection forbids force-push, "
+            "so the history is the evidence |",
+            "",
+        ]
+
+        # ---- AAP ---------------------------------------------------------
+        template = AAP_TEMPLATE.get(remediation)
+        variables = control_variables(stig_id, task, defaults)
+        lines += [
+            "#### Mitigation path: Ansible Automation Platform",
+            "",
+            "| | |",
+            "| --- | --- |",
+            "| Project | `RHEL 8 STIG CAT II` (syncs this repo, revision updated on launch) |",
+            f"| Job tag | `{stig_id}` |",
+            f"| Remediation template | {f'`{template}`' if template else '**none** - no automatable fix'} |",
+            "| Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |",
+            f"| Approval | {AAP_APPROVAL.get(remediation, 'Unclassified.')} |",
+            f"| Evidence | `{stig_id}` entry in the per-host evidence document, "
+            "collected by `STIG CAT II - Evidence Report` |",
+            "",
+        ]
+        if variables:
+            lines += (
+                [
+                    "Tunables that steer this control, with their role defaults:",
+                    "",
+                    "| Variable | Default |",
+                    "| --- | --- |",
+                ]
+                + [f"| `{name}` | {fmt_value(value)} |" for name, value in variables]
+                + [""]
+            )
+
         lines += ["---", ""]
 
     return "\n".join(lines).rstrip() + "\n"
@@ -245,6 +377,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
     parser.add_argument("--tasks-dir", type=Path, default=TASKS_DIR)
+    parser.add_argument("--defaults", type=Path, default=DEFAULTS_FILE)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--write", action="store_true", help="Write the document to --output.")
@@ -275,7 +408,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         sys.stderr.write(f"error: {exc}\n")
         return 2
 
-    rendered = render(controls, manifest, args.tasks_dir, export_files)
+    rendered = render(
+        controls, manifest, args.tasks_dir, export_files, load_role_defaults(args.defaults)
+    )
 
     if args.check:
         current = args.output.read_text(encoding="utf-8") if args.output.exists() else ""

@@ -1,0 +1,21 @@
+---
+# The inventory in this repository is a sample that exists so CI has something
+# to resolve against. Real fleets belong in a source of truth - Satellite, a
+# CMDB, a cloud inventory plugin - because a hand-maintained host list is how a
+# host quietly stops being scanned.
+controller_inventories:
+  - name: RHEL 8 Fleet
+    organization: Platform Security
+    description: RHEL 8 hosts in scope for the CAT II baseline.
+
+controller_inventory_sources:
+  - name: RHEL 8 Fleet - from SCM
+    inventory: RHEL 8 Fleet
+    source: scm
+    source_project: RHEL 8 STIG CAT II
+    source_path: ansible/inventory/hosts.yml
+    update_on_launch: true
+    overwrite: true
+    description: >-
+      PLACEHOLDER. Replace with your real inventory source (Satellite, a cloud
+      plugin, or a CMDB script) before this baseline goes near production.

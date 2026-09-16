@@ -1,0 +1,21 @@
+---
+# AAP projects. GitHub is the only source of playbook content; nothing is
+# authored in the controller UI. "Update revision on launch" means every job
+# runs the commit that is on the branch right now, so the audit trail in AAP
+# and the audit trail in Git describe the same thing.
+controller_projects:
+  - name: RHEL 8 STIG CAT II
+    organization: Platform Security
+    scm_type: git
+    scm_url: https://github.com/lboogie345/devops-essentials-sample-app.git
+    scm_branch: main
+    scm_clean: true
+    # Refuse to run stale content. The cost is a sync per launch; the benefit is
+    # that "which commit hardened this host" always has an answer.
+    scm_update_on_launch: true
+    scm_update_cache_timeout: 0
+    scm_credential: GitHub - SCM read
+    default_environment: stig-rhel8-cat2-ee
+    description: >-
+      DISA STIG RHEL 8 V2R8 CAT II baseline. Content is reviewed in GitHub under
+      CODEOWNERS and merged to main before any job here can run it.

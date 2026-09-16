@@ -1,4 +1,17 @@
 ---
+# ============================================================================
+# SUPERSEDED by Ansible Automation Platform. See docs/AAP-INTEGRATION.md.
+# ============================================================================
+# Execution now lives in AAP, which has the credential isolation, the RBAC and
+# the approval nodes that GitHub Actions cannot provide for a managed fleet.
+#
+# This workflow is kept, DISABLED, for sites running the baseline without AAP.
+# Do not enable it alongside AAP: two schedulers converging the same hosts with
+# different credentials and no shared approval record is worse than either one
+# alone. Pick one.
+#
+# To use this instead of AAP, restore the trigger noted below.
+
 name: STIG drift detection
 
 # Continuous monitoring, in the NIST CA-7 sense. A baseline applied once and
@@ -6,9 +19,9 @@ name: STIG drift detection
 # control. This never changes a host - it runs the audit playbook, which is the
 # same role in audit-only mode.
 on:
-  schedule:
-    # 06:00 UTC daily, before the working day in most of the fleet's timezones.
-    - cron: '0 6 * * *'
+  # DISABLED: the nightly audit is an AAP schedule now
+  # (aap/controller/schedules.yml). To run drift detection from Actions
+  # instead, restore:  schedule: [{cron: '0 6 * * *'}]
   workflow_dispatch:
     inputs:
       tier:

@@ -1,0 +1,36 @@
+---
+# Execution environment for the STIG baseline.
+#
+# Pinning the EE is what makes an AAP run reproducible. A job that ran green in
+# March and red in June with no code change is almost always an unpinned
+# collection or a rebuilt base image. The benchmark this content enforces is
+# versioned; the thing that executes it has to be too.
+#
+#   ansible-builder build -f aap/execution-environment.yml \
+#       -t registry.example.mil/stig/rhel8-cat2-ee:2.8.0
+#
+# Tag with the benchmark version it was validated against, not "latest".
+version: 3
+
+images:
+  base_image:
+    # Red Hat's supported minimal EE. Mirror it into your own registry; a
+    # disconnected AAP cannot pull from registry.redhat.io at job launch.
+    name: registry.redhat.io/ansible-automation-platform-24/ee-minimal-rhel8:latest
+
+dependencies:
+  galaxy: ../ansible/requirements.yml
+  python:
+    # The reporter runs inside the EE for the evidence job template.
+    - PyYAML>=6.0,<7.0
+  system:
+    # openssl is needed by RHEL-08-010090 to inspect the trust anchor, and is
+    # not in ee-minimal.
+    - openssl [platform:rpm]
+
+additional_build_steps:
+  append_final:
+    - COPY --chown=1000:0 scripts /opt/stig/scripts
+    - RUN chmod -R g=u /opt/stig
+    # Fail the build rather than ship an EE whose collections drifted.
+    - RUN ansible-galaxy collection list

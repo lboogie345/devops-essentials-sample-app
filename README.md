@@ -16,6 +16,9 @@ gap and CI fails rather than quietly omitting it.
 **Start here:** [`docs/STIG-CAT-II-Remediation.md`](docs/STIG-CAT-II-Remediation.md)
 — the approach, the traps, and the rollout sequence.
 
+**Execution model:** [`docs/AAP-INTEGRATION.md`](docs/AAP-INTEGRATION.md)
+— how GitHub and Ansible Automation Platform divide the work.
+
 **Per-control detail:** [`docs/CONTROL-REFERENCE.md`](docs/CONTROL-REFERENCE.md)
 — generated from the DISA export; one check and one remediation per control,
 with the task file that enforces each. Regenerate with
@@ -33,7 +36,11 @@ scripts/stig/
   report.py                          evidence -> Markdown, POA&M CSV, JUnit XML
   parse_disa_export.py               DISA text export -> control manifest
   gen_control_docs.py                DISA text export -> control reference doc
-.github/workflows/                   validate, remediate (gated), drift detection
+aap/
+  execution-environment.yml          pinned EE, built with ansible-builder
+  configure.yml                      applies the controller config as code
+  controller/                        projects, credentials, templates, RBAC
+.github/workflows/                   validate + AAP project sync
 ```
 
 ### Quick start

@@ -5,6 +5,15 @@ exclude_paths:
   - evidence/
   - .github/
   - gradle/
+  # The controller configuration playbook depends on infra.controller_configuration,
+  # which is AAP admin tooling rather than part of the baseline's runtime. It is
+  # deliberately NOT in the execution environment - an EE that can reconfigure the
+  # controller is a larger blast radius than an EE that hardens a host.
+  #
+  # It is not unchecked: the `aap-config` job in stig-validate installs
+  # aap/requirements.yml and runs --syntax-check against it, and
+  # scripts/tests/test_aap_config.py asserts the object definitions it consumes.
+  - aap/configure.yml
 skip_list:
   # The role deliberately exposes unprefixed `stig_*` variables instead of
   # `rhel8_stig_cat2_*`. They are the role's public interface: system owners set

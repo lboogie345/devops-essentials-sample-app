@@ -1,0 +1,11 @@
+---
+# Collections needed to APPLY the controller configuration. Separate from
+# ansible/requirements.yml, which is what the baseline itself needs at run time
+# - the execution environment should not carry controller admin tooling.
+collections:
+  - name: ansible.controller
+    version: ">=4.5.0"
+    # The supported collection, shipped with AAP. awx.awx is the upstream
+    # equivalent if you are on AWX rather than AAP.
+  - name: infra.controller_configuration
+    version: ">=2.7.0"

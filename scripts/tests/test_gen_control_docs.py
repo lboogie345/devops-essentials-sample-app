@@ -25,9 +25,16 @@ def _controls():
     return gen.disa.parse_exports(EXPORTS)
 
 
+DEFAULTS = REPO / "ansible/roles/rhel8_stig_cat2/defaults/main.yml"
+
+
 def _render():
     return gen.render(
-        _controls(), gen.load_manifest(MANIFEST), TASKS, gen.disa.collect_export_files(EXPORTS)
+        _controls(),
+        gen.load_manifest(MANIFEST),
+        TASKS,
+        gen.disa.collect_export_files(EXPORTS),
+        gen.load_role_defaults(DEFAULTS),
     )
 
 
@@ -71,6 +78,7 @@ def test_unimplemented_control_is_reported_as_a_gap(tmp_path):
         gen.load_manifest(MANIFEST),
         empty_tasks,
         gen.disa.collect_export_files(EXPORTS),
+        gen.load_role_defaults(DEFAULTS),
     )
     assert "Coverage gap" in out
     assert f"Implemented by the role: **0 of {len(_controls())}**" in out
@@ -131,3 +139,80 @@ def test_missing_export_is_a_usage_error(tmp_path, capsys):
 
 def test_fence_neutralises_a_code_fence_in_benchmark_text():
     assert "```" not in gen.fence("evil ``` text").split("\n")[1]
+
+
+# --- per-control GitHub and AAP mitigation ----------------------------------
+
+
+def test_every_control_documents_both_mitigation_paths(rendered):
+    n = len(_controls())
+    assert rendered.count("#### Mitigation path: GitHub") == n
+    assert rendered.count("#### Mitigation path: Ansible Automation Platform") == n
+
+
+def test_gated_controls_are_marked_as_needing_a_dedicated_approval(rendered):
+    import yaml
+
+    manifest = yaml.safe_load(MANIFEST.read_text(encoding="utf-8"))["controls"]
+    for control in manifest:
+        section = rendered.split(f"\n## {control['stig_id']}\n")[1].split("\n## ")[0]
+        if control["remediation"] == "gated":
+            assert "Dedicated approval node" in section, control["stig_id"]
+            assert "Remediate (Gated Control)" in section, control["stig_id"]
+        elif control["remediation"] == "manual":
+            # A manual control must not advertise a remediation template.
+            assert "no automatable fix" in section, control["stig_id"]
+        else:
+            assert "Remediate (Automated and Assisted)" in section, control["stig_id"]
+
+
+def test_tunables_do_not_leak_between_controls_sharing_a_task_file():
+    defaults = gen.load_role_defaults(DEFAULTS)
+    # These three share sysctl_network.yml. Each must list only its own switch.
+    names = {
+        sid: {v for v, _ in gen.control_variables(sid, gen.find_task_file(sid, TASKS), defaults)}
+        for sid in ("RHEL-08-040221", "RHEL-08-040222", "RHEL-08-040287")
+    }
+    assert "stig_040221_enabled" in names["RHEL-08-040221"]
+    assert "stig_040222_enabled" not in names["RHEL-08-040221"]
+    assert "stig_040287_enabled" not in names["RHEL-08-040221"]
+    assert "stig_040287_apply_to_existing_interfaces" in names["RHEL-08-040287"]
+
+
+def test_tunables_include_enable_flags_referenced_only_in_main_yml():
+    defaults = gen.load_role_defaults(DEFAULTS)
+    # stig_010731_enabled gates the include in main.yml, not the task file.
+    names = {
+        v
+        for v, _ in gen.control_variables(
+            "RHEL-08-010731", gen.find_task_file("RHEL-08-010731", TASKS), defaults
+        )
+    }
+    assert "stig_010731_enabled" in names
+
+
+def test_shared_switches_are_attributed_to_the_controls_that_use_them():
+    defaults = gen.load_role_defaults(DEFAULTS)
+    names = {
+        v
+        for v, _ in gen.control_variables(
+            "RHEL-08-020250", gen.find_task_file("RHEL-08-020250", TASKS), defaults
+        )
+    }
+    assert "stig_mfa_alternate" in names
+    assert "stig_audit_only" in names
+
+
+def test_aap_template_names_in_docs_match_the_controller_config(rendered):
+    import yaml
+
+    templates = {
+        t["name"]
+        for t in yaml.safe_load(
+            (REPO / "aap/controller/job_templates.yml").read_text(encoding="utf-8")
+        )["controller_templates"]
+    }
+    for name in set(gen.AAP_TEMPLATE.values()) | {"STIG CAT II - Audit"}:
+        if name:
+            assert name in templates, f"doc references a template that does not exist: {name}"
+            assert name in rendered

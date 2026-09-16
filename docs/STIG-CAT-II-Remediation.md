@@ -231,6 +231,13 @@ in every compliance percentage and produce duplicate POA&M rows.
 Git gives you history. GitHub gives you *control* — and the difference is where
 most of the compliance value sits.
 
+> **Execution runs in Ansible Automation Platform.** GitHub decides what the
+> baseline *is*; AAP decides what runs, where, by whom and with whose approval.
+> The full split, the five job templates, the approval model and the RBAC are in
+> [`AAP-INTEGRATION.md`](AAP-INTEGRATION.md). The GitHub Actions workflows that
+> touched hosts directly are superseded and disabled; what remains is the
+> validation gate and a project-sync trigger.
+
 | Concern | Mechanism |
 | --- | --- |
 | Peer review of security content | `CODEOWNERS` requiring security engineering on the role, manifest, and inventory group_vars |

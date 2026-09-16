@@ -1,0 +1,57 @@
+---
+# Separation of duties. The point of running this in AAP rather than from a
+# laptop is that the person who can launch a remediation, the person who can
+# approve it, and the person who can change what it does are different people,
+# and the platform enforces that rather than a convention.
+controller_organizations:
+  - name: Platform Security
+    description: Owns the STIG baseline content and its execution.
+
+controller_teams:
+  - name: STIG Operators
+    organization: Platform Security
+    description: Can audit and dry run. Cannot apply, cannot approve.
+
+  - name: STIG Approvers
+    organization: Platform Security
+    description: >-
+      Can approve workflow nodes. Deliberately holds no execute role - an
+      approver who can also launch can approve their own change.
+
+  - name: STIG Engineers
+    organization: Platform Security
+    description: >-
+      Maintains the content in GitHub and can launch remediation. Cannot
+      approve; the approval must come from outside the team that wrote it.
+
+controller_roles:
+  # Operators: read-only paths only.
+  - team: STIG Operators
+    job_template: STIG CAT II - Audit
+    role: execute
+  - team: STIG Operators
+    job_template: STIG CAT II - Remediate (Check Mode)
+    role: execute
+  - team: STIG Operators
+    job_template: STIG CAT II - Evidence Report
+    role: execute
+
+  # Engineers: can launch the applies, and the workflow that gates them.
+  - team: STIG Engineers
+    job_template: STIG CAT II - Remediate (Automated and Assisted)
+    role: execute
+  - team: STIG Engineers
+    job_template: STIG CAT II - Remediate (Gated Control)
+    role: execute
+  - team: STIG Engineers
+    workflow: STIG CAT II - Staged Rollout
+    role: execute
+  - team: STIG Engineers
+    project: RHEL 8 STIG CAT II
+    role: read
+
+  # Approvers: approval only. `approval` is the role that lets a user act on an
+  # approval node; it does not confer execute on anything.
+  - team: STIG Approvers
+    workflow: STIG CAT II - Staged Rollout
+    role: approval

@@ -1,0 +1,64 @@
+---
+name: STIG sync to AAP
+
+# Tells the controller to re-sync the project when approved content lands on
+# main, so AAP picks it up immediately rather than at the next launch.
+#
+# This is the ONLY GitHub Actions workflow that talks to AAP, and it is
+# deliberately the least privileged thing it could do: it triggers a project
+# update. It cannot launch a job, cannot reach a managed host, and cannot
+# approve anything. Execution and authorization stay inside AAP, where the
+# RBAC and the approval nodes are.
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'ansible/**'
+      - 'aap/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stig-sync-aap
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    name: Project sync
+    runs-on: ubuntu-latest
+    # The token lives in an environment, not a repository secret, so a pull
+    # request from a fork cannot reach it.
+    environment: aap-controller
+    steps:
+      - name: Trigger the controller project update
+        env:
+          CONTROLLER_HOST: ${{ secrets.CONTROLLER_HOST }}
+          CONTROLLER_TOKEN: ${{ secrets.CONTROLLER_OAUTH_TOKEN }}
+          PROJECT_ID: ${{ vars.CONTROLLER_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CONTROLLER_HOST:-}" ]; then
+            echo "::notice::CONTROLLER_HOST is not configured; skipping AAP sync."
+            echo "Configure the aap-controller environment to enable it." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          code=$(curl -sS -o /tmp/sync.json -w '%{http_code}' \
+            -X POST \
+            -H "Authorization: Bearer ${CONTROLLER_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            "${CONTROLLER_HOST}/api/v2/projects/${PROJECT_ID}/update/")
+          if [ "$code" != "202" ]; then
+            echo "::error::Controller returned HTTP ${code}"
+            cat /tmp/sync.json
+            exit 1
+          fi
+          job=$(python3 -c 'import json;print(json.load(open("/tmp/sync.json")).get("id",""))')
+          {
+            echo "## AAP project sync queued"
+            echo
+            echo "Project update job: \`${job}\`"
+            echo
+            echo "Commit \`${GITHUB_SHA}\` is now what the controller will run."
+          } >> "$GITHUB_STEP_SUMMARY"

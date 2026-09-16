@@ -1,0 +1,220 @@
+---
+# Job templates. The division follows the manifest's remediation categories,
+# because those categories encode blast radius:
+#
+#   automated + assisted -> one template, safe to schedule
+#   gated                -> one template per launch, survey-driven, approval-gated
+#   manual               -> no remediation template exists; evidence only
+#
+# Every template asks for a change record. An AAP job with no change reference
+# is an unattributable modification to a production host, which is the thing
+# the audit trail exists to prevent.
+controller_templates:
+
+  # -------------------------------------------------------------------------
+  - name: STIG CAT II - Audit
+    job_type: run
+    organization: Platform Security
+    project: RHEL 8 STIG CAT II
+    playbook: ansible/audit.yml
+    inventory: RHEL 8 Fleet
+    execution_environment: stig-rhel8-cat2-ee
+    credentials:
+      - RHEL 8 Fleet - Machine
+      - RHEL 8 Fleet - Vault
+    ask_limit_on_launch: true
+    become_enabled: true
+    verbosity: 0
+    # Read-only. Safe to schedule, safe to hand to an operator, and the only
+    # template that anyone outside the security team needs to launch.
+    description: >-
+      Read-only compliance audit. Converges nothing, writes a per-host evidence
+      document and fails when any control is Open. This is the drift detector.
+    survey_enabled: true
+    survey_spec:
+      name: Audit scope
+      description: Which hosts to audit.
+      spec:
+        - question_name: Inventory group
+          variable: stig_target
+          type: multiplechoice
+          choices:
+            - rhel8
+            - rhel8_staging
+            - rhel8_prod
+          default: rhel8
+          required: true
+
+  # -------------------------------------------------------------------------
+  - name: STIG CAT II - Remediate (Check Mode)
+    job_type: check
+    organization: Platform Security
+    project: RHEL 8 STIG CAT II
+    playbook: ansible/remediate.yml
+    inventory: RHEL 8 Fleet
+    execution_environment: stig-rhel8-cat2-ee
+    credentials:
+      - RHEL 8 Fleet - Machine
+      - RHEL 8 Fleet - Vault
+    ask_limit_on_launch: true
+    ask_tags_on_launch: true
+    become_enabled: true
+    diff_mode: true
+    # job_type: check is enforced here rather than left to a survey answer.
+    # A template that can be flipped to apply by changing a dropdown is not a
+    # dry run, it is an apply waiting for a mistake.
+    description: >-
+      Dry run. Shows exactly what would change, host by host, with diffs.
+      Cannot modify a host: job_type is fixed to check on the template.
+    survey_enabled: true
+    survey_spec:
+      name: Dry run scope
+      description: Which hosts, and which controls.
+      spec:
+        - question_name: Inventory group
+          variable: stig_target
+          type: multiplechoice
+          choices: [rhel8, rhel8_staging, rhel8_prod]
+          default: rhel8_staging
+          required: true
+
+  # -------------------------------------------------------------------------
+  - name: STIG CAT II - Remediate (Automated and Assisted)
+    job_type: run
+    organization: Platform Security
+    project: RHEL 8 STIG CAT II
+    playbook: ansible/remediate.yml
+    inventory: RHEL 8 Fleet
+    execution_environment: stig-rhel8-cat2-ee
+    credentials:
+      - RHEL 8 Fleet - Machine
+      - RHEL 8 Fleet - Vault
+    ask_limit_on_launch: true
+    become_enabled: true
+    diff_mode: true
+    # Gated controls are off by default in the role, so they no-op here even
+    # though the playbook includes them. The tag list is a second, explicit
+    # boundary: a gated control cannot be switched on by an extra var passed to
+    # this template, because its tasks are not selected in the first place.
+    # This list is exactly the manifest's automated + assisted controls, and
+    # scripts/tests/test_aap_config.py fails the build if it drifts from the
+    # manifest. Hand-maintaining it is how a gated control ends up running
+    # through an un-approved template.
+    job_tags: >-
+      RHEL-08-010019,RHEL-08-010090,RHEL-08-010358,RHEL-08-010379,RHEL-08-010385,
+      RHEL-08-010400,RHEL-08-010490,RHEL-08-010731,RHEL-08-010741,RHEL-08-020017,
+      RHEL-08-020035,RHEL-08-020101,RHEL-08-020104,RHEL-08-020352,RHEL-08-020360,
+      RHEL-08-030655,RHEL-08-040221,RHEL-08-040222,RHEL-08-040287
+    description: >-
+      Applies the 19 automated and assisted controls. Gated controls are
+      excluded by tag as well as by their default-off variables. Manual controls
+      are not here either - they have no automatable fix, and the audit template
+      is what gathers their evidence.
+    survey_enabled: true
+    survey_spec:
+      name: Remediation scope
+      description: Tier, batch size and the change record this run is authorized by.
+      spec:
+        - question_name: Inventory group
+          variable: stig_target
+          type: multiplechoice
+          choices: [rhel8_staging, rhel8_prod]
+          default: rhel8_staging
+          required: true
+        - question_name: Rolling batch size (hosts or percentage)
+          variable: stig_serial
+          type: text
+          default: 25%
+          required: true
+        - question_name: Change record reference
+          variable: stig_change_ticket
+          type: text
+          required: true
+          min: 4
+          # Lands in the evidence document, so the artifact answers "who
+          # authorized this" without a separate lookup.
+
+  # -------------------------------------------------------------------------
+  - name: STIG CAT II - Remediate (Gated Control)
+    job_type: run
+    organization: Platform Security
+    project: RHEL 8 STIG CAT II
+    playbook: ansible/remediate.yml
+    inventory: RHEL 8 Fleet
+    execution_environment: stig-rhel8-cat2-ee
+    credentials:
+      - RHEL 8 Fleet - Machine
+      - RHEL 8 Fleet - Vault
+    ask_limit_on_launch: true
+    ask_variables_on_launch: true
+    become_enabled: true
+    diff_mode: true
+    # One gated control per launch, on purpose. Enabling fapolicyd enforcement
+    # and USBGuard in the same job means a host that loses both its ability to
+    # execute software and its console keyboard, with one job to debug.
+    description: >-
+      Applies ONE gated control per launch. Each of these can take a host
+      offline in a way the others cannot; they are staged individually, behind
+      a workflow approval node.
+    survey_enabled: true
+    survey_spec:
+      name: Gated control
+      description: >-
+        Pick the control and supply the organizational data it needs. The
+        enabling variable still has to be set in extra vars - the survey scopes
+        the run, it does not switch the control on by itself.
+      spec:
+        - question_name: Control to apply
+          variable: stig_gated_control
+          type: multiplechoice
+          # Exactly the manifest's gated controls; enforced by
+          # scripts/tests/test_aap_config.py.
+          choices:
+            - RHEL-08-010455  # sudo SELinux elevation
+            - RHEL-08-010590  # noexec on home filesystems
+            - RHEL-08-020090  # PKI certificate mapping
+            - RHEL-08-020250  # smart card logon
+            - RHEL-08-020320  # unnecessary accounts
+            - RHEL-08-040137  # fapolicyd allow listing
+            - RHEL-08-040140  # USBGuard
+            - RHEL-08-040321  # graphical display manager default target
+            - RHEL-08-040400  # SELinux confined users
+          required: true
+        - question_name: Inventory group
+          variable: stig_target
+          type: multiplechoice
+          choices: [rhel8_staging, rhel8_prod]
+          default: rhel8_staging
+          required: true
+        - question_name: Rolling batch size
+          variable: stig_serial
+          type: text
+          default: "1"
+          required: true
+        - question_name: Change record reference
+          variable: stig_change_ticket
+          type: text
+          required: true
+          min: 4
+        - question_name: Confirm staging soak completed
+          variable: stig_gated_soaked
+          type: multiplechoice
+          choices: ["yes", "no"]
+          default: "no"
+          required: true
+
+  # -------------------------------------------------------------------------
+  - name: STIG CAT II - Evidence Report
+    job_type: run
+    organization: Platform Security
+    project: RHEL 8 STIG CAT II
+    playbook: ansible/report.yml
+    inventory: RHEL 8 Fleet
+    execution_environment: stig-rhel8-cat2-ee
+    credentials:
+      - RHEL 8 Fleet - Machine
+    become_enabled: true
+    description: >-
+      Collects the per-host evidence documents, renders the POA&M and the
+      compliance summary, and surfaces the counts as job artifacts so a
+      workflow node downstream can branch on them.

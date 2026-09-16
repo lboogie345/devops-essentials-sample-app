@@ -1,0 +1,111 @@
+---
+# The staged rollout, as a workflow. This is the piece AAP gives you that a
+# plain playbook run does not: an approval node is a hard stop inside the
+# automation, recorded against a named human, that no amount of "just run it
+# again" gets past.
+#
+# Shape, and why:
+#
+#   audit staging -> check staging -> [APPROVE] -> apply staging -> audit staging
+#      -> [APPROVE] -> check prod -> apply prod -> audit prod -> evidence
+#
+# The second approval exists because the first one approved a different fact.
+# Approving a staging apply is approving a plan; approving a production apply is
+# approving a result that staging actually produced. Collapsing them into one
+# gate means production is authorized before anyone has seen staging converge.
+controller_workflows:
+  - name: STIG CAT II - Staged Rollout
+    organization: Platform Security
+    description: >-
+      Audit, dry run, approve, apply, re-audit - staging first, then production
+      behind a second approval. The only sanctioned path to a production apply.
+    ask_variables_on_launch: true
+    survey_enabled: true
+    survey_spec:
+      name: Rollout
+      description: The change record this whole rollout is authorized by.
+      spec:
+        - question_name: Change record reference
+          variable: stig_change_ticket
+          type: text
+          required: true
+          min: 4
+        - question_name: Production rolling batch size
+          variable: stig_prod_serial
+          type: text
+          default: 10%
+          required: true
+    simplified_workflow_nodes:
+      - identifier: audit-staging
+        unified_job_template: STIG CAT II - Audit
+        extra_data:
+          stig_target: rhel8_staging
+        # Deliberately not failing the workflow: the opening audit is expected
+        # to find the very findings this rollout exists to close.
+        success_nodes: [check-staging]
+        failure_nodes: [check-staging]
+
+      - identifier: check-staging
+        unified_job_template: STIG CAT II - Remediate (Check Mode)
+        extra_data:
+          stig_target: rhel8_staging
+        success_nodes: [approve-staging]
+
+      - identifier: approve-staging
+        approval_node:
+          name: Approve staging apply
+          description: >-
+            Read the check-mode diff on the node above. Approving authorizes
+            those changes on the staging tier only.
+          timeout: 86400
+        success_nodes: [apply-staging]
+
+      - identifier: apply-staging
+        unified_job_template: STIG CAT II - Remediate (Automated and Assisted)
+        extra_data:
+          stig_target: rhel8_staging
+          stig_serial: 25%
+        success_nodes: [verify-staging]
+
+      - identifier: verify-staging
+        unified_job_template: STIG CAT II - Audit
+        extra_data:
+          stig_target: rhel8_staging
+        # Only a clean staging audit opens the production gate. A failed audit
+        # here ends the workflow; there is no path from red staging to prod.
+        success_nodes: [approve-production]
+
+      - identifier: approve-production
+        approval_node:
+          name: Approve production apply
+          description: >-
+            Staging converged and re-audited clean. Approving authorizes the
+            same content against production, in rolling batches.
+          timeout: 604800
+        success_nodes: [check-production]
+
+      - identifier: check-production
+        unified_job_template: STIG CAT II - Remediate (Check Mode)
+        extra_data:
+          stig_target: rhel8_prod
+        success_nodes: [apply-production]
+
+      - identifier: apply-production
+        unified_job_template: STIG CAT II - Remediate (Automated and Assisted)
+        extra_data:
+          stig_target: rhel8_prod
+        success_nodes: [verify-production]
+        failure_nodes: [evidence]
+
+      - identifier: verify-production
+        unified_job_template: STIG CAT II - Audit
+        extra_data:
+          stig_target: rhel8_prod
+        success_nodes: [evidence]
+        failure_nodes: [evidence]
+
+      - identifier: evidence
+        unified_job_template: STIG CAT II - Evidence Report
+        # Always runs, on success or failure. A rollout that went wrong is
+        # exactly the one you need the evidence package for.
+        all_parents_must_converge: false

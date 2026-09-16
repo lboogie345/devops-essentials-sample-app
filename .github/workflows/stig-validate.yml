@@ -9,6 +9,7 @@ on:
   pull_request:
     paths:
       - 'ansible/**'
+      - 'aap/**'
       - 'scripts/**'
       - '.github/workflows/stig-*.yml'
       - '.ansible-lint'
@@ -19,6 +20,7 @@ on:
     branches: [master, main]
     paths:
       - 'ansible/**'
+      - 'aap/**'
       - 'scripts/**'
   workflow_dispatch:
 
@@ -49,7 +51,7 @@ jobs:
         run: ansible-galaxy collection install -r ansible/requirements.yml
 
       - name: yamllint
-        run: yamllint -c .yamllint ansible/
+        run: yamllint -c .yamllint ansible/ aap/
 
       - name: ansible-lint (production profile)
         run: ansible-lint
@@ -81,6 +83,8 @@ jobs:
         run: pip install -r scripts/stig/requirements-dev.txt
 
       - name: pytest
+        # Includes the AAP boundary tests: a gated control must never be
+        # reachable through the un-approved job template.
         run: python -m pytest
 
   contract:
@@ -123,6 +127,31 @@ jobs:
           assert suite.get("tests") == "15", f"expected 15 controls, got {suite.get('tests')}"
           print("evidence contract holds")
           PY
+
+  aap-config:
+    name: AAP configuration
+    runs-on: ubuntu-latest
+    # The controller CasC playbook is excluded from the repo-wide ansible-lint
+    # run because its collections are admin tooling that does not belong in the
+    # execution environment. It gets checked here instead, with them installed.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install tooling
+        run: pip install -r scripts/stig/requirements-dev.txt
+
+      - name: Install the controller configuration collections
+        run: ansible-galaxy collection install -r aap/requirements.yml
+
+      - name: Syntax check the controller configuration playbook
+        run: ansible-playbook aap/configure.yml --syntax-check
+
+      - name: Verify no secret material is committed
+        run: python -m pytest scripts/tests/test_aap_config.py -q
 
   benchmark-drift:
     name: Benchmark drift

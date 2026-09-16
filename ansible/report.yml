@@ -1,0 +1,119 @@
+---
+# Collect evidence and render the compliance package.
+#
+# Written for AAP job isolation: every job runs in a fresh container, so this
+# cannot assume a previous job left files on disk. It reads the evidence
+# documents from the hosts themselves, which also means the artifact reflects
+# what is on the fleet right now rather than what some earlier run reported.
+- name: Collect STIG evidence from the fleet
+  hosts: "{{ stig_target | default('rhel8') }}"
+  become: true
+  gather_facts: false
+  vars:
+    stig_evidence_dir: /var/log/stig
+    # Job-local workdir. In AAP every job gets a fresh container, so this is
+    # ephemeral by design; archive the rendered package to durable storage in a
+    # downstream node if the assessment package needs to outlive the job.
+    stig_report_workdir: "{{ lookup('env', 'STIG_REPORT_DIR') | default('/tmp/stig-report', true) }}"
+  tasks:
+    - name: Look for the per-host evidence document
+      ansible.builtin.stat:
+        path: "{{ stig_evidence_dir }}/{{ inventory_hostname }}-stig-cat2.json"
+      register: stig_report_doc
+
+    - name: Warn about hosts that have never been audited
+      ansible.builtin.debug:
+        msg: >-
+          No evidence document on {{ inventory_hostname }}. This host has not been
+          through an audit or remediation run, so it contributes nothing to the
+          report - which is itself a finding about coverage, not a clean result.
+      when: not stig_report_doc.stat.exists
+
+    - name: Retrieve the evidence document
+      ansible.builtin.fetch:
+        src: "{{ stig_evidence_dir }}/{{ inventory_hostname }}-stig-cat2.json"
+        dest: "{{ stig_report_workdir }}/"
+        flat: true
+      when: stig_report_doc.stat.exists
+
+- name: Render the compliance package
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: true
+  vars:
+    stig_report_workdir: "{{ lookup('env', 'STIG_REPORT_DIR') | default('/tmp/stig-report', true) }}"
+    # The reporter ships in the project; the EE also carries a copy at
+    # /opt/stig/scripts for ad-hoc use outside a project checkout.
+    stig_report_script: "{{ playbook_dir }}/../scripts/stig/report.py"
+    # The workflow's evidence node runs on success or failure, so it reports
+    # rather than fails by default. Set true to use this as a gate.
+    stig_report_fail_on_findings: false
+  tasks:
+    - name: Find the evidence documents that were collected
+      ansible.builtin.find:
+        paths: "{{ stig_report_workdir }}"
+        patterns: "*.json"
+      register: stig_report_found
+
+    - name: Fail when the fleet produced no evidence at all
+      ansible.builtin.fail:
+        msg: >-
+          No evidence documents were collected from
+          {{ groups[stig_target | default('rhel8')] | default([]) | length }} host(s).
+          Run the audit template first; an empty report is not a passing report.
+      when: stig_report_found.matched == 0
+
+    - name: Render the summary, POA&M and JUnit result
+      ansible.builtin.command:
+        cmd: >-
+          {{ stig_report_script }}
+          {{ stig_report_workdir }}
+          --controls {{ playbook_dir }}/controls/rhel8_cat2_controls.yml
+          --markdown {{ stig_report_workdir }}/summary.md
+          --poam {{ stig_report_workdir }}/poam.csv
+          --junit {{ stig_report_workdir }}/junit.xml
+          --exit-zero
+      register: stig_report_run
+      changed_when: false
+
+    - name: Read the rendered summary
+      ansible.builtin.slurp:
+        src: "{{ stig_report_workdir }}/summary.md"
+      register: stig_report_summary
+
+    - name: Publish the summary in the job output
+      ansible.builtin.debug:
+        msg: "{{ (stig_report_summary.content | b64decode).split('\n') }}"
+
+    - name: Re-run the reporter as a gate to get the finding count
+      ansible.builtin.command:
+        cmd: >-
+          {{ stig_report_script }}
+          {{ stig_report_workdir }}
+          --controls {{ playbook_dir }}/controls/rhel8_cat2_controls.yml
+          --markdown /dev/null
+      register: stig_report_gate
+      changed_when: false
+      failed_when: stig_report_gate.rc not in [0, 1]
+
+    - name: Surface the result as workflow artifacts
+      # set_stats makes these available to downstream workflow nodes and to the
+      # AAP API, so a ticketing integration can read the outcome without
+      # scraping job output.
+      ansible.builtin.set_stats:
+        data:
+          stig_hosts_reported: "{{ stig_report_found.matched }}"
+          stig_findings_open: "{{ stig_report_gate.rc == 1 }}"
+          stig_evidence_path: "{{ stig_report_workdir }}"
+          stig_change_ticket: "{{ stig_change_ticket | default('') }}"
+        aggregate: false
+
+    - name: Fail the job when open findings remain
+      ansible.builtin.fail:
+        msg: >-
+          Open CAT II findings remain. See the summary above and
+          {{ stig_report_workdir }}/poam.csv.
+      when:
+        - stig_report_fail_on_findings | bool
+        - stig_report_gate.rc == 1

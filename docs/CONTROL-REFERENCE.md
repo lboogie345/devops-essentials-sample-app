@@ -126,6 +126,37 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010019.yml`](../ansibl
 
 > Keys cannot be manufactured by automation. The role restores the vendor key file from the redhat-release package, imports it, and asserts the fingerprints against hard-coded vendor values. A host with no key file and no package cache is reported for manual media-based remediation.
 
+#### Mitigation path: GitHub
+
+| | |
+| --- | --- |
+| Source of truth | [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010019.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010019.yml) |
+| Required reviewers | `@your-org/platform-security @your-org/linux-engineering` (CODEOWNERS) |
+| Merge gate | `stig-validate`: ansible-lint (production profile), yamllint, playbook syntax, evidence-schema contract, benchmark drift, AAP boundary tests |
+| Risk classification | `assisted` / residual risk `low` - reviewed in [`rhel8_cat2_controls.yml`](../ansible/controls/rhel8_cat2_controls.yml) |
+| Change record | the merge commit; branch protection forbids force-push, so the history is the evidence |
+
+#### Mitigation path: Ansible Automation Platform
+
+| | |
+| --- | --- |
+| Project | `RHEL 8 STIG CAT II` (syncs this repo, revision updated on launch) |
+| Job tag | `RHEL-08-010019` |
+| Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
+| Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Approval | Tier approval node in the staged-rollout workflow. |
+| Evidence | `RHEL-08-010019` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
+
+Tunables that steer this control, with their role defaults:
+
+| Variable | Default |
+| --- | --- |
+| `stig_010019_allow_pkg_reinstall` | `true` |
+| `stig_010019_enabled` | `true` |
+| `stig_010019_expected_fingerprints` | `['567E347AD0044ADE55BA8A5F199E2F91FD431D51', '6A6AA7C97C8890AEC6AEBFE2F76F66C3D4082792']` |
+| `stig_010019_keyfile` | `/etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release` |
+| `stig_audit_only` | `false` |
+
 ---
 
 ## RHEL-08-010090
@@ -190,6 +221,38 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010090.yml`](../ansibl
 
 Applicability: Not applicable where an approved alternate MFA method is used.
 
+#### Mitigation path: GitHub
+
+| | |
+| --- | --- |
+| Source of truth | [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010090.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010090.yml) |
+| Required reviewers | `@your-org/platform-security @your-org/linux-engineering` (CODEOWNERS) |
+| Merge gate | `stig-validate`: ansible-lint (production profile), yamllint, playbook syntax, evidence-schema contract, benchmark drift, AAP boundary tests |
+| Risk classification | `assisted` / residual risk `medium` - reviewed in [`rhel8_cat2_controls.yml`](../ansible/controls/rhel8_cat2_controls.yml) |
+| Change record | the merge commit; branch protection forbids force-push, so the history is the evidence |
+
+#### Mitigation path: Ansible Automation Platform
+
+| | |
+| --- | --- |
+| Project | `RHEL 8 STIG CAT II` (syncs this repo, revision updated on launch) |
+| Job tag | `RHEL-08-010090` |
+| Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
+| Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Approval | Tier approval node in the staged-rollout workflow. |
+| Evidence | `RHEL-08-010090` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
+
+Tunables that steer this control, with their role defaults:
+
+| Variable | Default |
+| --- | --- |
+| `stig_010090_ca_db` | `/etc/sssd/pki/sssd_auth_ca_db.pem` |
+| `stig_010090_ca_source` | _(unset)_ |
+| `stig_audit_only` | `false` |
+| `stig_backup` | `true` |
+| `stig_mfa_alternate` | `false` |
+| `stig_mfa_alternate_ref` | _(unset)_ |
+
 ---
 
 ## RHEL-08-010358
@@ -238,6 +301,35 @@ Install the "mailx" package on the system:
 Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010358.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010358.yml), runnable on its own with `ansible-playbook remediate.yml --tags RHEL-08-010358`.
 
 > mailx or s-nail satisfies the check; the role accepts either.
+
+#### Mitigation path: GitHub
+
+| | |
+| --- | --- |
+| Source of truth | [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010358.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010358.yml) |
+| Required reviewers | `@your-org/platform-security @your-org/linux-engineering` (CODEOWNERS) |
+| Merge gate | `stig-validate`: ansible-lint (production profile), yamllint, playbook syntax, evidence-schema contract, benchmark drift, AAP boundary tests |
+| Risk classification | `automated` / residual risk `low` - reviewed in [`rhel8_cat2_controls.yml`](../ansible/controls/rhel8_cat2_controls.yml) |
+| Change record | the merge commit; branch protection forbids force-push, so the history is the evidence |
+
+#### Mitigation path: Ansible Automation Platform
+
+| | |
+| --- | --- |
+| Project | `RHEL 8 STIG CAT II` (syncs this repo, revision updated on launch) |
+| Job tag | `RHEL-08-010358` |
+| Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
+| Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Approval | Tier approval node in the staged-rollout workflow. |
+| Evidence | `RHEL-08-010358` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
+
+Tunables that steer this control, with their role defaults:
+
+| Variable | Default |
+| --- | --- |
+| `stig_010358_enabled` | `true` |
+| `stig_010358_package` | `mailx` |
+| `stig_audit_only` | `false` |
 
 ---
 
@@ -297,6 +389,36 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010379.yml`](../ansibl
 
 > Enforced through visudo validation. Nested includes found under /etc/sudoers.d are reported, never deleted automatically - removing one can revoke the privilege path the automation itself depends on.
 
+#### Mitigation path: GitHub
+
+| | |
+| --- | --- |
+| Source of truth | [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010379.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010379.yml) |
+| Required reviewers | `@your-org/platform-security @your-org/linux-engineering` (CODEOWNERS) |
+| Merge gate | `stig-validate`: ansible-lint (production profile), yamllint, playbook syntax, evidence-schema contract, benchmark drift, AAP boundary tests |
+| Risk classification | `assisted` / residual risk `high` - reviewed in [`rhel8_cat2_controls.yml`](../ansible/controls/rhel8_cat2_controls.yml) |
+| Change record | the merge commit; branch protection forbids force-push, so the history is the evidence |
+
+#### Mitigation path: Ansible Automation Platform
+
+| | |
+| --- | --- |
+| Project | `RHEL 8 STIG CAT II` (syncs this repo, revision updated on launch) |
+| Job tag | `RHEL-08-010379` |
+| Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
+| Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Approval | Tier approval node in the staged-rollout workflow. |
+| Evidence | `RHEL-08-010379` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
+
+Tunables that steer this control, with their role defaults:
+
+| Variable | Default |
+| --- | --- |
+| `stig_010379_enabled` | `true` |
+| `stig_010379_remove_nested_includes` | `false` |
+| `stig_audit_only` | `false` |
+| `stig_backup` | `true` |
+
 ---
 
 ## RHEL-08-010385
@@ -344,6 +466,35 @@ Remove any occurrences of "pam_succeed_if" in the file.
 Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010385.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010385.yml), runnable on its own with `ansible-playbook remediate.yml --tags RHEL-08-010385`.
 
 > Removing pam_succeed_if from /etc/pam.d/sudo makes sudo prompt for a password where it previously did not. Confirm no automation authenticates through a passwordless sudo that relies on this bypass before enabling.
+
+#### Mitigation path: GitHub
+
+| | |
+| --- | --- |
+| Source of truth | [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010385.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010385.yml) |
+| Required reviewers | `@your-org/platform-security @your-org/linux-engineering` (CODEOWNERS) |
+| Merge gate | `stig-validate`: ansible-lint (production profile), yamllint, playbook syntax, evidence-schema contract, benchmark drift, AAP boundary tests |
+| Risk classification | `automated` / residual risk `medium` - reviewed in [`rhel8_cat2_controls.yml`](../ansible/controls/rhel8_cat2_controls.yml) |
+| Change record | the merge commit; branch protection forbids force-push, so the history is the evidence |
+
+#### Mitigation path: Ansible Automation Platform
+
+| | |
+| --- | --- |
+| Project | `RHEL 8 STIG CAT II` (syncs this repo, revision updated on launch) |
+| Job tag | `RHEL-08-010385` |
+| Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
+| Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Approval | Tier approval node in the staged-rollout workflow. |
+| Evidence | `RHEL-08-010385` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
+
+Tunables that steer this control, with their role defaults:
+
+| Variable | Default |
+| --- | --- |
+| `stig_010385_enabled` | `true` |
+| `stig_audit_only` | `false` |
+| `stig_backup` | `true` |
 
 ---
 
@@ -404,6 +555,37 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010400.yml`](../ansibl
 
 Applicability: Not applicable where an approved alternate MFA method is used.
 
+#### Mitigation path: GitHub
+
+| | |
+| --- | --- |
+| Source of truth | [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010400.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010400.yml) |
+| Required reviewers | `@your-org/platform-security @your-org/linux-engineering` (CODEOWNERS) |
+| Merge gate | `stig-validate`: ansible-lint (production profile), yamllint, playbook syntax, evidence-schema contract, benchmark drift, AAP boundary tests |
+| Risk classification | `assisted` / residual risk `medium` - reviewed in [`rhel8_cat2_controls.yml`](../ansible/controls/rhel8_cat2_controls.yml) |
+| Change record | the merge commit; branch protection forbids force-push, so the history is the evidence |
+
+#### Mitigation path: Ansible Automation Platform
+
+| | |
+| --- | --- |
+| Project | `RHEL 8 STIG CAT II` (syncs this repo, revision updated on launch) |
+| Job tag | `RHEL-08-010400` |
+| Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
+| Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Approval | Tier approval node in the staged-rollout workflow. |
+| Evidence | `RHEL-08-010400` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
+
+Tunables that steer this control, with their role defaults:
+
+| Variable | Default |
+| --- | --- |
+| `stig_010400_verification` | `ocsp_dgst=sha1` |
+| `stig_audit_only` | `false` |
+| `stig_backup` | `true` |
+| `stig_mfa_alternate` | `false` |
+| `stig_mfa_alternate_ref` | _(unset)_ |
+
 ---
 
 ## RHEL-08-010455
@@ -463,6 +645,37 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010455.yml`](../ansibl
 
 > Requires an org-defined admin group. Off by default: a wrong sudoers entry locks every administrator out of privilege escalation at once.
 
+#### Mitigation path: GitHub
+
+| | |
+| --- | --- |
+| Source of truth | [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010455.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010455.yml) |
+| Required reviewers | `@your-org/platform-security @your-org/linux-engineering` (CODEOWNERS) |
+| Merge gate | `stig-validate`: ansible-lint (production profile), yamllint, playbook syntax, evidence-schema contract, benchmark drift, AAP boundary tests |
+| Risk classification | `gated` / residual risk `high` - reviewed in [`rhel8_cat2_controls.yml`](../ansible/controls/rhel8_cat2_controls.yml) |
+| Change record | the merge commit; branch protection forbids force-push, so the history is the evidence |
+
+#### Mitigation path: Ansible Automation Platform
+
+| | |
+| --- | --- |
+| Project | `RHEL 8 STIG CAT II` (syncs this repo, revision updated on launch) |
+| Job tag | `RHEL-08-010455` |
+| Remediation template | `STIG CAT II - Remediate (Gated Control)` |
+| Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Approval | **Dedicated approval node, one control per launch.** |
+| Evidence | `RHEL-08-010455` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
+
+Tunables that steer this control, with their role defaults:
+
+| Variable | Default |
+| --- | --- |
+| `stig_010455_admin_group` | _(unset)_ |
+| `stig_010455_enabled` | `false` |
+| `stig_010455_sudoers_file` | `/etc/sudoers.d/stig_selinux_admins` |
+| `stig_audit_only` | `false` |
+| `stig_backup` | `true` |
+
 ---
 
 ## RHEL-08-010490
@@ -512,6 +725,35 @@ $ sudo systemctl restart sshd.service
 Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010490.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010490.yml), runnable on its own with `ansible-playbook remediate.yml --tags RHEL-08-010490`.
 
 > Applies to private host keys only. The matching .pub files must stay world-readable; tightening them breaks host key verification for every client.
+
+#### Mitigation path: GitHub
+
+| | |
+| --- | --- |
+| Source of truth | [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010490.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010490.yml) |
+| Required reviewers | `@your-org/platform-security @your-org/linux-engineering` (CODEOWNERS) |
+| Merge gate | `stig-validate`: ansible-lint (production profile), yamllint, playbook syntax, evidence-schema contract, benchmark drift, AAP boundary tests |
+| Risk classification | `automated` / residual risk `low` - reviewed in [`rhel8_cat2_controls.yml`](../ansible/controls/rhel8_cat2_controls.yml) |
+| Change record | the merge commit; branch protection forbids force-push, so the history is the evidence |
+
+#### Mitigation path: Ansible Automation Platform
+
+| | |
+| --- | --- |
+| Project | `RHEL 8 STIG CAT II` (syncs this repo, revision updated on launch) |
+| Job tag | `RHEL-08-010490` |
+| Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
+| Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Approval | Tier approval node in the staged-rollout workflow. |
+| Evidence | `RHEL-08-010490` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
+
+Tunables that steer this control, with their role defaults:
+
+| Variable | Default |
+| --- | --- |
+| `stig_010490_enabled` | `true` |
+| `stig_010490_restart_sshd` | `true` |
+| `stig_audit_only` | `false` |
 
 ---
 
@@ -567,6 +809,35 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010590.yml`](../ansibl
 
 > If home directories sit on / the check text makes this an automatic finding that cannot be remediated without repartitioning. A bad /etc/fstab edit renders a host unbootable, so the role validates the entry and remounts only when explicitly opted in.
 
+#### Mitigation path: GitHub
+
+| | |
+| --- | --- |
+| Source of truth | [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010590.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010590.yml) |
+| Required reviewers | `@your-org/platform-security @your-org/linux-engineering` (CODEOWNERS) |
+| Merge gate | `stig-validate`: ansible-lint (production profile), yamllint, playbook syntax, evidence-schema contract, benchmark drift, AAP boundary tests |
+| Risk classification | `gated` / residual risk `high` - reviewed in [`rhel8_cat2_controls.yml`](../ansible/controls/rhel8_cat2_controls.yml) |
+| Change record | the merge commit; branch protection forbids force-push, so the history is the evidence |
+
+#### Mitigation path: Ansible Automation Platform
+
+| | |
+| --- | --- |
+| Project | `RHEL 8 STIG CAT II` (syncs this repo, revision updated on launch) |
+| Job tag | `RHEL-08-010590` |
+| Remediation template | `STIG CAT II - Remediate (Gated Control)` |
+| Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Approval | **Dedicated approval node, one control per launch.** |
+| Evidence | `RHEL-08-010590` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
+
+Tunables that steer this control, with their role defaults:
+
+| Variable | Default |
+| --- | --- |
+| `stig_010590_enabled` | `false` |
+| `stig_010590_remount` | `false` |
+| `stig_audit_only` | `false` |
+
 ---
 
 ## RHEL-08-010731
@@ -617,6 +888,34 @@ $ sudo chmod 0750 /home/smithj/<file or directory>
 Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010731.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010731.yml), runnable on its own with `ansible-playbook remediate.yml --tags RHEL-08-010731`.
 
 > Forcing a literal 0750 would ADD the execute bit to data files. The role instead removes group-write and all other-access (g-w,o-rwx), which satisfies '0750 or less permissive' as a strict reduction. Dot-files are excluded per the check text.
+
+#### Mitigation path: GitHub
+
+| | |
+| --- | --- |
+| Source of truth | [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010731.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010731.yml) |
+| Required reviewers | `@your-org/platform-security @your-org/linux-engineering` (CODEOWNERS) |
+| Merge gate | `stig-validate`: ansible-lint (production profile), yamllint, playbook syntax, evidence-schema contract, benchmark drift, AAP boundary tests |
+| Risk classification | `assisted` / residual risk `medium` - reviewed in [`rhel8_cat2_controls.yml`](../ansible/controls/rhel8_cat2_controls.yml) |
+| Change record | the merge commit; branch protection forbids force-push, so the history is the evidence |
+
+#### Mitigation path: Ansible Automation Platform
+
+| | |
+| --- | --- |
+| Project | `RHEL 8 STIG CAT II` (syncs this repo, revision updated on launch) |
+| Job tag | `RHEL-08-010731` |
+| Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
+| Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Approval | Tier approval node in the staged-rollout workflow. |
+| Evidence | `RHEL-08-010731` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
+
+Tunables that steer this control, with their role defaults:
+
+| Variable | Default |
+| --- | --- |
+| `stig_010731_enabled` | `true` |
+| `stig_audit_only` | `false` |
 
 ---
 
@@ -676,6 +975,35 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010741.yml`](../ansibl
 
 > Group ownership outside the owner's groups can be an ISSO-documented arrangement, so the role reports by default. Re-grouping to the owner's primary group is opt-in.
 
+#### Mitigation path: GitHub
+
+| | |
+| --- | --- |
+| Source of truth | [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010741.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-010741.yml) |
+| Required reviewers | `@your-org/platform-security @your-org/linux-engineering` (CODEOWNERS) |
+| Merge gate | `stig-validate`: ansible-lint (production profile), yamllint, playbook syntax, evidence-schema contract, benchmark drift, AAP boundary tests |
+| Risk classification | `assisted` / residual risk `medium` - reviewed in [`rhel8_cat2_controls.yml`](../ansible/controls/rhel8_cat2_controls.yml) |
+| Change record | the merge commit; branch protection forbids force-push, so the history is the evidence |
+
+#### Mitigation path: Ansible Automation Platform
+
+| | |
+| --- | --- |
+| Project | `RHEL 8 STIG CAT II` (syncs this repo, revision updated on launch) |
+| Job tag | `RHEL-08-010741` |
+| Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
+| Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Approval | Tier approval node in the staged-rollout workflow. |
+| Evidence | `RHEL-08-010741` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
+
+Tunables that steer this control, with their role defaults:
+
+| Variable | Default |
+| --- | --- |
+| `stig_010741_enabled` | `true` |
+| `stig_010741_fix` | `false` |
+| `stig_audit_only` | `false` |
+
 ---
 
 ## RHEL-08-020017
@@ -726,6 +1054,36 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-020017.yml`](../ansibl
 > The default pam_faillock tally directory is cleared on boot, so lockouts do not survive a reboot. A non-default dir is the whole point of the control.
 
 Applicability: RHEL >= 8.2.
+
+#### Mitigation path: GitHub
+
+| | |
+| --- | --- |
+| Source of truth | [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-020017.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-020017.yml) |
+| Required reviewers | `@your-org/platform-security @your-org/linux-engineering` (CODEOWNERS) |
+| Merge gate | `stig-validate`: ansible-lint (production profile), yamllint, playbook syntax, evidence-schema contract, benchmark drift, AAP boundary tests |
+| Risk classification | `automated` / residual risk `low` - reviewed in [`rhel8_cat2_controls.yml`](../ansible/controls/rhel8_cat2_controls.yml) |
+| Change record | the merge commit; branch protection forbids force-push, so the history is the evidence |
+
+#### Mitigation path: Ansible Automation Platform
+
+| | |
+| --- | --- |
+| Project | `RHEL 8 STIG CAT II` (syncs this repo, revision updated on launch) |
+| Job tag | `RHEL-08-020017` |
+| Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
+| Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Approval | Tier approval node in the staged-rollout workflow. |
+| Evidence | `RHEL-08-020017` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
+
+Tunables that steer this control, with their role defaults:
+
+| Variable | Default |
+| --- | --- |
+| `stig_020017_dir` | `/var/log/faillock` |
+| `stig_020017_enabled` | `true` |
+| `stig_audit_only` | `false` |
+| `stig_backup` | `true` |
 
 ---
 
@@ -781,6 +1139,37 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-020035.yml`](../ansibl
 > Not applicable below 8.7, and not applicable on cloud-hosted systems where ClientAliveInterval (V-244525) is configured. Both exclusions are wired to variables so the skip is recorded as Not_Applicable, not as a silent pass.
 
 Applicability: RHEL >= 8.7.
+
+#### Mitigation path: GitHub
+
+| | |
+| --- | --- |
+| Source of truth | [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-020035.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-020035.yml) |
+| Required reviewers | `@your-org/platform-security @your-org/linux-engineering` (CODEOWNERS) |
+| Merge gate | `stig-validate`: ansible-lint (production profile), yamllint, playbook syntax, evidence-schema contract, benchmark drift, AAP boundary tests |
+| Risk classification | `automated` / residual risk `medium` - reviewed in [`rhel8_cat2_controls.yml`](../ansible/controls/rhel8_cat2_controls.yml) |
+| Change record | the merge commit; branch protection forbids force-push, so the history is the evidence |
+
+#### Mitigation path: Ansible Automation Platform
+
+| | |
+| --- | --- |
+| Project | `RHEL 8 STIG CAT II` (syncs this repo, revision updated on launch) |
+| Job tag | `RHEL-08-020035` |
+| Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
+| Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Approval | Tier approval node in the staged-rollout workflow. |
+| Evidence | `RHEL-08-020035` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
+
+Tunables that steer this control, with their role defaults:
+
+| Variable | Default |
+| --- | --- |
+| `stig_020035_cloud_hosted` | `false` |
+| `stig_020035_enabled` | `true` |
+| `stig_020035_stop_idle_session_sec` | `600` |
+| `stig_audit_only` | `false` |
+| `stig_backup` | `true` |
 
 ---
 
@@ -852,6 +1241,38 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-020090.yml`](../ansibl
 
 Applicability: Not applicable where an approved alternate MFA method is used.
 
+#### Mitigation path: GitHub
+
+| | |
+| --- | --- |
+| Source of truth | [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-020090.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-020090.yml) |
+| Required reviewers | `@your-org/platform-security @your-org/linux-engineering` (CODEOWNERS) |
+| Merge gate | `stig-validate`: ansible-lint (production profile), yamllint, playbook syntax, evidence-schema contract, benchmark drift, AAP boundary tests |
+| Risk classification | `gated` / residual risk `medium` - reviewed in [`rhel8_cat2_controls.yml`](../ansible/controls/rhel8_cat2_controls.yml) |
+| Change record | the merge commit; branch protection forbids force-push, so the history is the evidence |
+
+#### Mitigation path: Ansible Automation Platform
+
+| | |
+| --- | --- |
+| Project | `RHEL 8 STIG CAT II` (syncs this repo, revision updated on launch) |
+| Job tag | `RHEL-08-020090` |
+| Remediation template | `STIG CAT II - Remediate (Gated Control)` |
+| Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Approval | **Dedicated approval node, one control per launch.** |
+| Evidence | `RHEL-08-020090` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
+
+Tunables that steer this control, with their role defaults:
+
+| Variable | Default |
+| --- | --- |
+| `stig_020090_certmap` | _(unset)_ |
+| `stig_020090_enabled` | `false` |
+| `stig_audit_only` | `false` |
+| `stig_backup` | `true` |
+| `stig_mfa_alternate` | `false` |
+| `stig_mfa_alternate_ref` | _(unset)_ |
+
 ---
 
 ## RHEL-08-020101
@@ -900,6 +1321,37 @@ Add the following line to the "/etc/pam.d/system-auth" file (or modify the line 
 Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-020101.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-020101.yml), runnable on its own with `ansible-playbook remediate.yml --tags RHEL-08-020101`.
 
 > /etc/pam.d/system-auth is owned by authselect. Editing it in place is reverted by the next authselect apply and breaks `authselect check`. The role edits the custom authselect profile instead and re-applies it.
+
+#### Mitigation path: GitHub
+
+| | |
+| --- | --- |
+| Source of truth | [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-020101.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-020101.yml) |
+| Required reviewers | `@your-org/platform-security @your-org/linux-engineering` (CODEOWNERS) |
+| Merge gate | `stig-validate`: ansible-lint (production profile), yamllint, playbook syntax, evidence-schema contract, benchmark drift, AAP boundary tests |
+| Risk classification | `assisted` / residual risk `high` - reviewed in [`rhel8_cat2_controls.yml`](../ansible/controls/rhel8_cat2_controls.yml) |
+| Change record | the merge commit; branch protection forbids force-push, so the history is the evidence |
+
+#### Mitigation path: Ansible Automation Platform
+
+| | |
+| --- | --- |
+| Project | `RHEL 8 STIG CAT II` (syncs this repo, revision updated on launch) |
+| Job tag | `RHEL-08-020101` |
+| Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
+| Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Approval | Tier approval node in the staged-rollout workflow. |
+| Evidence | `RHEL-08-020101` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
+
+Tunables that steer this control, with their role defaults:
+
+| Variable | Default |
+| --- | --- |
+| `stig_020101_allow_direct_pam_edit` | `true` |
+| `stig_020101_authselect_profile` | `stig` |
+| `stig_020101_enabled` | `true` |
+| `stig_audit_only` | `false` |
+| `stig_backup` | `true` |
 
 ---
 
@@ -951,6 +1403,36 @@ retry = 3
 Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-020104.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-020104.yml), runnable on its own with `ansible-playbook remediate.yml --tags RHEL-08-020104`.
 
 Applicability: RHEL >= 8.4.
+
+#### Mitigation path: GitHub
+
+| | |
+| --- | --- |
+| Source of truth | [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-020104.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-020104.yml) |
+| Required reviewers | `@your-org/platform-security @your-org/linux-engineering` (CODEOWNERS) |
+| Merge gate | `stig-validate`: ansible-lint (production profile), yamllint, playbook syntax, evidence-schema contract, benchmark drift, AAP boundary tests |
+| Risk classification | `automated` / residual risk `low` - reviewed in [`rhel8_cat2_controls.yml`](../ansible/controls/rhel8_cat2_controls.yml) |
+| Change record | the merge commit; branch protection forbids force-push, so the history is the evidence |
+
+#### Mitigation path: Ansible Automation Platform
+
+| | |
+| --- | --- |
+| Project | `RHEL 8 STIG CAT II` (syncs this repo, revision updated on launch) |
+| Job tag | `RHEL-08-020104` |
+| Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
+| Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Approval | Tier approval node in the staged-rollout workflow. |
+| Evidence | `RHEL-08-020104` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
+
+Tunables that steer this control, with their role defaults:
+
+| Variable | Default |
+| --- | --- |
+| `stig_020104_enabled` | `true` |
+| `stig_020104_retry` | `3` |
+| `stig_audit_only` | `false` |
+| `stig_backup` | `true` |
 
 ---
 
@@ -1021,6 +1503,37 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-020250.yml`](../ansibl
 
 Applicability: Not applicable where an approved alternate MFA method is used.
 
+#### Mitigation path: GitHub
+
+| | |
+| --- | --- |
+| Source of truth | [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-020250.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-020250.yml) |
+| Required reviewers | `@your-org/platform-security @your-org/linux-engineering` (CODEOWNERS) |
+| Merge gate | `stig-validate`: ansible-lint (production profile), yamllint, playbook syntax, evidence-schema contract, benchmark drift, AAP boundary tests |
+| Risk classification | `gated` / residual risk `high` - reviewed in [`rhel8_cat2_controls.yml`](../ansible/controls/rhel8_cat2_controls.yml) |
+| Change record | the merge commit; branch protection forbids force-push, so the history is the evidence |
+
+#### Mitigation path: Ansible Automation Platform
+
+| | |
+| --- | --- |
+| Project | `RHEL 8 STIG CAT II` (syncs this repo, revision updated on launch) |
+| Job tag | `RHEL-08-020250` |
+| Remediation template | `STIG CAT II - Remediate (Gated Control)` |
+| Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Approval | **Dedicated approval node, one control per launch.** |
+| Evidence | `RHEL-08-020250` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
+
+Tunables that steer this control, with their role defaults:
+
+| Variable | Default |
+| --- | --- |
+| `stig_020250_enabled` | `false` |
+| `stig_audit_only` | `false` |
+| `stig_backup` | `true` |
+| `stig_mfa_alternate` | `false` |
+| `stig_mfa_alternate_ref` | _(unset)_ |
+
 ---
 
 ## RHEL-08-020320
@@ -1074,6 +1587,38 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-020320.yml`](../ansibl
 
 > Requires the system's authorized-user list, which automation cannot hold. The role never runs userdel on its own initiative; it reports interactive accounts for comparison against that list.
 
+#### Mitigation path: GitHub
+
+| | |
+| --- | --- |
+| Source of truth | [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-020320.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-020320.yml) |
+| Required reviewers | `@your-org/platform-security @your-org/linux-engineering` (CODEOWNERS) |
+| Merge gate | `stig-validate`: ansible-lint (production profile), yamllint, playbook syntax, evidence-schema contract, benchmark drift, AAP boundary tests |
+| Risk classification | `gated` / residual risk `high` - reviewed in [`rhel8_cat2_controls.yml`](../ansible/controls/rhel8_cat2_controls.yml) |
+| Change record | the merge commit; branch protection forbids force-push, so the history is the evidence |
+
+#### Mitigation path: Ansible Automation Platform
+
+| | |
+| --- | --- |
+| Project | `RHEL 8 STIG CAT II` (syncs this repo, revision updated on launch) |
+| Job tag | `RHEL-08-020320` |
+| Remediation template | `STIG CAT II - Remediate (Gated Control)` |
+| Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Approval | **Dedicated approval node, one control per launch.** |
+| Evidence | `RHEL-08-020320` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
+
+Tunables that steer this control, with their role defaults:
+
+| Variable | Default |
+| --- | --- |
+| `stig_020320_enabled` | `false` |
+| `stig_020320_protected_accounts` | `['root', "{{ ansible_user | default('ansible') }}"]` |
+| `stig_020320_remove_accounts` | _(unset)_ |
+| `stig_020320_remove_home` | `false` |
+| `stig_audit_only` | `false` |
+| `stig_interactive_uid_min` | `1000` |
+
 ---
 
 ## RHEL-08-020352
@@ -1123,6 +1668,36 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-020352.yml`](../ansibl
 
 > The fix is removal of less-restrictive umask statements from user initialization files, which leaves the system default in force. Application accounts may carry a documented exception, so removal is opt-in.
 
+#### Mitigation path: GitHub
+
+| | |
+| --- | --- |
+| Source of truth | [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-020352.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-020352.yml) |
+| Required reviewers | `@your-org/platform-security @your-org/linux-engineering` (CODEOWNERS) |
+| Merge gate | `stig-validate`: ansible-lint (production profile), yamllint, playbook syntax, evidence-schema contract, benchmark drift, AAP boundary tests |
+| Risk classification | `assisted` / residual risk `medium` - reviewed in [`rhel8_cat2_controls.yml`](../ansible/controls/rhel8_cat2_controls.yml) |
+| Change record | the merge commit; branch protection forbids force-push, so the history is the evidence |
+
+#### Mitigation path: Ansible Automation Platform
+
+| | |
+| --- | --- |
+| Project | `RHEL 8 STIG CAT II` (syncs this repo, revision updated on launch) |
+| Job tag | `RHEL-08-020352` |
+| Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
+| Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Approval | Tier approval node in the staged-rollout workflow. |
+| Evidence | `RHEL-08-020352` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
+
+Tunables that steer this control, with their role defaults:
+
+| Variable | Default |
+| --- | --- |
+| `stig_020352_enabled` | `true` |
+| `stig_020352_remove` | `false` |
+| `stig_audit_only` | `false` |
+| `stig_backup` | `true` |
+
 ---
 
 ## RHEL-08-020360
@@ -1169,6 +1744,38 @@ declare -xr TMOUT=600
 ### How this repository remediates it
 
 Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-020360.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-020360.yml), runnable on its own with `ansible-playbook remediate.yml --tags RHEL-08-020360`.
+
+#### Mitigation path: GitHub
+
+| | |
+| --- | --- |
+| Source of truth | [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-020360.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-020360.yml) |
+| Required reviewers | `@your-org/platform-security @your-org/linux-engineering` (CODEOWNERS) |
+| Merge gate | `stig-validate`: ansible-lint (production profile), yamllint, playbook syntax, evidence-schema contract, benchmark drift, AAP boundary tests |
+| Risk classification | `automated` / residual risk `medium` - reviewed in [`rhel8_cat2_controls.yml`](../ansible/controls/rhel8_cat2_controls.yml) |
+| Change record | the merge commit; branch protection forbids force-push, so the history is the evidence |
+
+#### Mitigation path: Ansible Automation Platform
+
+| | |
+| --- | --- |
+| Project | `RHEL 8 STIG CAT II` (syncs this repo, revision updated on launch) |
+| Job tag | `RHEL-08-020360` |
+| Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
+| Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Approval | Tier approval node in the staged-rollout workflow. |
+| Evidence | `RHEL-08-020360` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
+
+Tunables that steer this control, with their role defaults:
+
+| Variable | Default |
+| --- | --- |
+| `stig_020360_enabled` | `true` |
+| `stig_020360_file` | `/etc/profile.d/tmout.sh` |
+| `stig_020360_reentrant_guard` | `false` |
+| `stig_020360_tmout` | `600` |
+| `stig_audit_only` | `false` |
+| `stig_backup` | `true` |
 
 ---
 
@@ -1222,6 +1829,36 @@ $ sudo augenrules --load
 Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-030655.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-030655.yml), runnable on its own with `ansible-playbook remediate.yml --tags RHEL-08-030655`.
 
 > If auditd is in immutable mode (-e 2) the new rules only take effect after a reboot. The role detects this and reports reboot_required rather than claiming compliance the running kernel does not have.
+
+#### Mitigation path: GitHub
+
+| | |
+| --- | --- |
+| Source of truth | [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-030655.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-030655.yml) |
+| Required reviewers | `@your-org/platform-security @your-org/linux-engineering` (CODEOWNERS) |
+| Merge gate | `stig-validate`: ansible-lint (production profile), yamllint, playbook syntax, evidence-schema contract, benchmark drift, AAP boundary tests |
+| Risk classification | `automated` / residual risk `low` - reviewed in [`rhel8_cat2_controls.yml`](../ansible/controls/rhel8_cat2_controls.yml) |
+| Change record | the merge commit; branch protection forbids force-push, so the history is the evidence |
+
+#### Mitigation path: Ansible Automation Platform
+
+| | |
+| --- | --- |
+| Project | `RHEL 8 STIG CAT II` (syncs this repo, revision updated on launch) |
+| Job tag | `RHEL-08-030655` |
+| Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
+| Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Approval | Tier approval node in the staged-rollout workflow. |
+| Evidence | `RHEL-08-030655` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
+
+Tunables that steer this control, with their role defaults:
+
+| Variable | Default |
+| --- | --- |
+| `stig_030655_enabled` | `true` |
+| `stig_030655_rules_file` | `/etc/audit/rules.d/50-stig-cronjobs.rules` |
+| `stig_audit_only` | `false` |
+| `stig_backup` | `true` |
 
 ---
 
@@ -1279,6 +1916,33 @@ Update the host's firewall settings and/or running services to comply with the P
 Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-040030.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-040030.yml), runnable on its own with `ansible-playbook remediate.yml --tags RHEL-08-040030`.
 
 > The fix text contains no command. Compliance is defined by the site PPSM CLSA and the PPSM CAL, which are documents, not settings. The role captures firewalld zones, services and ports as evidence for the human comparison and always reports Open.
+
+#### Mitigation path: GitHub
+
+| | |
+| --- | --- |
+| Source of truth | [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-040030.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-040030.yml) |
+| Required reviewers | `@your-org/platform-security @your-org/linux-engineering` (CODEOWNERS) |
+| Merge gate | `stig-validate`: ansible-lint (production profile), yamllint, playbook syntax, evidence-schema contract, benchmark drift, AAP boundary tests |
+| Risk classification | `manual` / residual risk `medium` - reviewed in [`rhel8_cat2_controls.yml`](../ansible/controls/rhel8_cat2_controls.yml) |
+| Change record | the merge commit; branch protection forbids force-push, so the history is the evidence |
+
+#### Mitigation path: Ansible Automation Platform
+
+| | |
+| --- | --- |
+| Project | `RHEL 8 STIG CAT II` (syncs this repo, revision updated on launch) |
+| Job tag | `RHEL-08-040030` |
+| Remediation template | **none** - no automatable fix |
+| Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Approval | Not applicable - no remediation template exists. |
+| Evidence | `RHEL-08-040030` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
+
+Tunables that steer this control, with their role defaults:
+
+| Variable | Default |
+| --- | --- |
+| `stig_040030_enabled` | `true` |
 
 ---
 
@@ -1345,6 +2009,37 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-040137.yml`](../ansibl
 
 > The discussion warns that improper configuration renders the system nonfunctional, and that fapolicyd is not namespace-aware and breaks containers. The role will not set permissive=0 without an explicit opt-in confirming an allow list has been built and tested.
 
+#### Mitigation path: GitHub
+
+| | |
+| --- | --- |
+| Source of truth | [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-040137.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-040137.yml) |
+| Required reviewers | `@your-org/platform-security @your-org/linux-engineering` (CODEOWNERS) |
+| Merge gate | `stig-validate`: ansible-lint (production profile), yamllint, playbook syntax, evidence-schema contract, benchmark drift, AAP boundary tests |
+| Risk classification | `gated` / residual risk `high` - reviewed in [`rhel8_cat2_controls.yml`](../ansible/controls/rhel8_cat2_controls.yml) |
+| Change record | the merge commit; branch protection forbids force-push, so the history is the evidence |
+
+#### Mitigation path: Ansible Automation Platform
+
+| | |
+| --- | --- |
+| Project | `RHEL 8 STIG CAT II` (syncs this repo, revision updated on launch) |
+| Job tag | `RHEL-08-040137` |
+| Remediation template | `STIG CAT II - Remediate (Gated Control)` |
+| Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Approval | **Dedicated approval node, one control per launch.** |
+| Evidence | `RHEL-08-040137` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
+
+Tunables that steer this control, with their role defaults:
+
+| Variable | Default |
+| --- | --- |
+| `stig_040137_denyall_rule_file` | `/etc/fapolicyd/rules.d/99-stig-deny-all.rules` |
+| `stig_040137_enabled` | `false` |
+| `stig_040137_enforce` | `false` |
+| `stig_audit_only` | `false` |
+| `stig_backup` | `true` |
+
 ---
 
 ## RHEL-08-040140
@@ -1401,6 +2096,35 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-040140.yml`](../ansibl
 
 > Starting usbguard without a generated policy immediately blocks USB input devices, including the keyboard on a physical console. Virtual machines with no USB peripherals attached are Not_Applicable per the check text.
 
+#### Mitigation path: GitHub
+
+| | |
+| --- | --- |
+| Source of truth | [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-040140.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-040140.yml) |
+| Required reviewers | `@your-org/platform-security @your-org/linux-engineering` (CODEOWNERS) |
+| Merge gate | `stig-validate`: ansible-lint (production profile), yamllint, playbook syntax, evidence-schema contract, benchmark drift, AAP boundary tests |
+| Risk classification | `gated` / residual risk `high` - reviewed in [`rhel8_cat2_controls.yml`](../ansible/controls/rhel8_cat2_controls.yml) |
+| Change record | the merge commit; branch protection forbids force-push, so the history is the evidence |
+
+#### Mitigation path: Ansible Automation Platform
+
+| | |
+| --- | --- |
+| Project | `RHEL 8 STIG CAT II` (syncs this repo, revision updated on launch) |
+| Job tag | `RHEL-08-040140` |
+| Remediation template | `STIG CAT II - Remediate (Gated Control)` |
+| Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Approval | **Dedicated approval node, one control per launch.** |
+| Evidence | `RHEL-08-040140` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
+
+Tunables that steer this control, with their role defaults:
+
+| Variable | Default |
+| --- | --- |
+| `stig_040140_enabled` | `false` |
+| `stig_040140_generate_policy` | `false` |
+| `stig_audit_only` | `false` |
+
 ---
 
 ## RHEL-08-040221
@@ -1455,6 +2179,37 @@ $ sudo sysctl --system
 
 Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/sysctl_network.yml`](../ansible/roles/rhel8_stig_cat2/tasks/sysctl_network.yml), runnable on its own with `ansible-playbook remediate.yml --tags RHEL-08-040221`.
 
+#### Mitigation path: GitHub
+
+| | |
+| --- | --- |
+| Source of truth | [`ansible/roles/rhel8_stig_cat2/tasks/sysctl_network.yml`](../ansible/roles/rhel8_stig_cat2/tasks/sysctl_network.yml) |
+| Required reviewers | `@your-org/platform-security @your-org/linux-engineering` (CODEOWNERS) |
+| Merge gate | `stig-validate`: ansible-lint (production profile), yamllint, playbook syntax, evidence-schema contract, benchmark drift, AAP boundary tests |
+| Risk classification | `automated` / residual risk `low` - reviewed in [`rhel8_cat2_controls.yml`](../ansible/controls/rhel8_cat2_controls.yml) |
+| Change record | the merge commit; branch protection forbids force-push, so the history is the evidence |
+
+#### Mitigation path: Ansible Automation Platform
+
+| | |
+| --- | --- |
+| Project | `RHEL 8 STIG CAT II` (syncs this repo, revision updated on launch) |
+| Job tag | `RHEL-08-040221` |
+| Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
+| Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Approval | Tier approval node in the staged-rollout workflow. |
+| Evidence | `RHEL-08-040221` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
+
+Tunables that steer this control, with their role defaults:
+
+| Variable | Default |
+| --- | --- |
+| `stig_040221_enabled` | `true` |
+| `stig_audit_only` | `false` |
+| `stig_sysctl_martians_file` | `/etc/sysctl.d/ipv4_log_martians.conf` |
+| `stig_sysctl_report_conflicts` | `true` |
+| `stig_sysctl_rpfilter_file` | `/etc/sysctl.d/ipv4_rp_filter.conf` |
+
 ---
 
 ## RHEL-08-040222
@@ -1508,6 +2263,37 @@ $ sudo sysctl --system
 ### How this repository remediates it
 
 Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/sysctl_network.yml`](../ansible/roles/rhel8_stig_cat2/tasks/sysctl_network.yml), runnable on its own with `ansible-playbook remediate.yml --tags RHEL-08-040222`.
+
+#### Mitigation path: GitHub
+
+| | |
+| --- | --- |
+| Source of truth | [`ansible/roles/rhel8_stig_cat2/tasks/sysctl_network.yml`](../ansible/roles/rhel8_stig_cat2/tasks/sysctl_network.yml) |
+| Required reviewers | `@your-org/platform-security @your-org/linux-engineering` (CODEOWNERS) |
+| Merge gate | `stig-validate`: ansible-lint (production profile), yamllint, playbook syntax, evidence-schema contract, benchmark drift, AAP boundary tests |
+| Risk classification | `automated` / residual risk `low` - reviewed in [`rhel8_cat2_controls.yml`](../ansible/controls/rhel8_cat2_controls.yml) |
+| Change record | the merge commit; branch protection forbids force-push, so the history is the evidence |
+
+#### Mitigation path: Ansible Automation Platform
+
+| | |
+| --- | --- |
+| Project | `RHEL 8 STIG CAT II` (syncs this repo, revision updated on launch) |
+| Job tag | `RHEL-08-040222` |
+| Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
+| Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Approval | Tier approval node in the staged-rollout workflow. |
+| Evidence | `RHEL-08-040222` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
+
+Tunables that steer this control, with their role defaults:
+
+| Variable | Default |
+| --- | --- |
+| `stig_040222_enabled` | `true` |
+| `stig_audit_only` | `false` |
+| `stig_sysctl_martians_file` | `/etc/sysctl.d/ipv4_log_martians.conf` |
+| `stig_sysctl_report_conflicts` | `true` |
+| `stig_sysctl_rpfilter_file` | `/etc/sysctl.d/ipv4_rp_filter.conf` |
 
 ---
 
@@ -1565,6 +2351,38 @@ Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/sysctl_network.yml`](../ansibl
 
 > rp_filter must not be strict on asymmetric-routing hosts. The role sets the `default` scope only and leaves existing interfaces alone unless explicitly told otherwise.
 
+#### Mitigation path: GitHub
+
+| | |
+| --- | --- |
+| Source of truth | [`ansible/roles/rhel8_stig_cat2/tasks/sysctl_network.yml`](../ansible/roles/rhel8_stig_cat2/tasks/sysctl_network.yml) |
+| Required reviewers | `@your-org/platform-security @your-org/linux-engineering` (CODEOWNERS) |
+| Merge gate | `stig-validate`: ansible-lint (production profile), yamllint, playbook syntax, evidence-schema contract, benchmark drift, AAP boundary tests |
+| Risk classification | `automated` / residual risk `medium` - reviewed in [`rhel8_cat2_controls.yml`](../ansible/controls/rhel8_cat2_controls.yml) |
+| Change record | the merge commit; branch protection forbids force-push, so the history is the evidence |
+
+#### Mitigation path: Ansible Automation Platform
+
+| | |
+| --- | --- |
+| Project | `RHEL 8 STIG CAT II` (syncs this repo, revision updated on launch) |
+| Job tag | `RHEL-08-040287` |
+| Remediation template | `STIG CAT II - Remediate (Automated and Assisted)` |
+| Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Approval | Tier approval node in the staged-rollout workflow. |
+| Evidence | `RHEL-08-040287` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
+
+Tunables that steer this control, with their role defaults:
+
+| Variable | Default |
+| --- | --- |
+| `stig_040287_apply_to_existing_interfaces` | `false` |
+| `stig_040287_enabled` | `true` |
+| `stig_audit_only` | `false` |
+| `stig_sysctl_martians_file` | `/etc/sysctl.d/ipv4_log_martians.conf` |
+| `stig_sysctl_report_conflicts` | `true` |
+| `stig_sysctl_rpfilter_file` | `/etc/sysctl.d/ipv4_rp_filter.conf` |
+
 ---
 
 ## RHEL-08-040321
@@ -1612,6 +2430,36 @@ A reboot is required for the changes to take effect.
 Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-040321.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-040321.yml), runnable on its own with `ansible-playbook remediate.yml --tags RHEL-08-040321`.
 
 > Hosts with an ISSO-documented GUI requirement are exempted by inventory variable, which produces a Not_Applicable with the approval reference recorded in the evidence artifact.
+
+#### Mitigation path: GitHub
+
+| | |
+| --- | --- |
+| Source of truth | [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-040321.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-040321.yml) |
+| Required reviewers | `@your-org/platform-security @your-org/linux-engineering` (CODEOWNERS) |
+| Merge gate | `stig-validate`: ansible-lint (production profile), yamllint, playbook syntax, evidence-schema contract, benchmark drift, AAP boundary tests |
+| Risk classification | `gated` / residual risk `medium` - reviewed in [`rhel8_cat2_controls.yml`](../ansible/controls/rhel8_cat2_controls.yml) |
+| Change record | the merge commit; branch protection forbids force-push, so the history is the evidence |
+
+#### Mitigation path: Ansible Automation Platform
+
+| | |
+| --- | --- |
+| Project | `RHEL 8 STIG CAT II` (syncs this repo, revision updated on launch) |
+| Job tag | `RHEL-08-040321` |
+| Remediation template | `STIG CAT II - Remediate (Gated Control)` |
+| Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Approval | **Dedicated approval node, one control per launch.** |
+| Evidence | `RHEL-08-040321` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
+
+Tunables that steer this control, with their role defaults:
+
+| Variable | Default |
+| --- | --- |
+| `stig_040321_enabled` | `true` |
+| `stig_040321_gui_approval_ref` | _(unset)_ |
+| `stig_040321_gui_approved` | `false` |
+| `stig_audit_only` | `false` |
 
 ---
 
@@ -1698,5 +2546,36 @@ This must be documented with the information system security officer (ISSO) as a
 Enforced by [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-040400.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-040400.yml), runnable on its own with `ansible-playbook remediate.yml --tags RHEL-08-040400`.
 
 > SELinux login mappings are per-account org data, not a setting. Off by default. Mapping an admin to sysadm_u blocks their SSH login unless ssh_sysadm_login is set, which itself needs an ISSO-documented operational requirement.
+
+#### Mitigation path: GitHub
+
+| | |
+| --- | --- |
+| Source of truth | [`ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-040400.yml`](../ansible/roles/rhel8_stig_cat2/tasks/RHEL-08-040400.yml) |
+| Required reviewers | `@your-org/platform-security @your-org/linux-engineering` (CODEOWNERS) |
+| Merge gate | `stig-validate`: ansible-lint (production profile), yamllint, playbook syntax, evidence-schema contract, benchmark drift, AAP boundary tests |
+| Risk classification | `gated` / residual risk `high` - reviewed in [`rhel8_cat2_controls.yml`](../ansible/controls/rhel8_cat2_controls.yml) |
+| Change record | the merge commit; branch protection forbids force-push, so the history is the evidence |
+
+#### Mitigation path: Ansible Automation Platform
+
+| | |
+| --- | --- |
+| Project | `RHEL 8 STIG CAT II` (syncs this repo, revision updated on launch) |
+| Job tag | `RHEL-08-040400` |
+| Remediation template | `STIG CAT II - Remediate (Gated Control)` |
+| Audit template | `STIG CAT II - Audit` (read-only, scheduled nightly) |
+| Approval | **Dedicated approval node, one control per launch.** |
+| Evidence | `RHEL-08-040400` entry in the per-host evidence document, collected by `STIG CAT II - Evidence Report` |
+
+Tunables that steer this control, with their role defaults:
+
+| Variable | Default |
+| --- | --- |
+| `stig_040400_enabled` | `false` |
+| `stig_040400_logins` | _(unset)_ |
+| `stig_040400_set_default_user_u` | `false` |
+| `stig_040400_ssh_sysadm_login` | `false` |
+| `stig_audit_only` | `false` |
 
 ---

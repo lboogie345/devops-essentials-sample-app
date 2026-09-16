@@ -1,0 +1,41 @@
+---
+# Notifications carry no findings detail on purpose. A STIG finding names a
+# weakness on a named host; that belongs in the evidence artifact behind
+# authentication, not in a chat channel with open membership.
+controller_notification_templates:
+  - name: STIG - Security engineering email
+    organization: Platform Security
+    notification_type: email
+    notification_configuration:
+      host: smtp.example.mil
+      port: 25
+      use_tls: true
+      sender: aap-stig@example.mil
+      recipients:
+        - platform-security@example.mil
+      timeout: 30
+
+  - name: STIG - Drift webhook
+    organization: Platform Security
+    notification_type: webhook
+    notification_configuration:
+      url: https://itsm.example.mil/api/v1/events/stig-drift
+      http_method: POST
+      headers:
+        Content-Type: application/json
+    description: >-
+      Opens or updates a ticket when the nightly audit fails. Points at the AAP
+      job, which is where the findings are; the payload itself stays generic.
+
+# Attached where they are useful, not everywhere. A notification on every
+# successful nightly audit trains people to filter the sender.
+controller_notification_template_associations:
+  - name: STIG CAT II - Audit
+    notification_on_failure:
+      - STIG - Security engineering email
+      - STIG - Drift webhook
+  - name: STIG CAT II - Staged Rollout
+    notification_on_failure:
+      - STIG - Security engineering email
+    notification_on_approval:
+      - STIG - Security engineering email
