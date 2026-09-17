@@ -1,0 +1,54 @@
+---
+# Step 1 of the workflow: measure disk utilization and decide which branch runs.
+- name: Measure every filesystem in scope
+  ansible.builtin.include_tasks: measure.yml
+
+- name: Override the report with a simulated utilization value
+  ansible.builtin.set_fact:
+    disk_report:
+      - mount: "{{ disk_sim_mount }}"
+        device: "{{ disk_sim_device }}"
+        fstype: "{{ disk_sim_fstype }}"
+        size_total: "{{ disk_sim_size_total | int }}"
+        size_used: "{{ ((disk_sim_size_total | int) * (disk_sim_percent | float) / 100.0) | int }}"
+        size_available: "{{ (disk_sim_size_total | int) - (((disk_sim_size_total | int) * (disk_sim_percent | float) / 100.0) | int) }}"
+        used_pct: "{{ disk_sim_percent | float }}"
+    disk_simulated: true
+  when: disk_sim_percent is defined
+
+# The fallback branch exists precisely because monitoring data can be missing or
+# nonsensical. Decide that here rather than letting a bad value pick a branch.
+- name: Judge whether the collected data is usable
+  ansible.builtin.set_fact:
+    disk_data_valid: >-
+      {{
+        (disk_report | length) > 0
+        and (disk_report | map(attribute='used_pct') | map('float') | select('lt', 0.0) | list | length) == 0
+        and (disk_report | map(attribute='used_pct') | map('float') | select('gt', 100.0) | list | length) == 0
+      }}
+
+- name: Identify the busiest filesystem
+  ansible.builtin.set_fact:
+    disk_worst: "{{ (disk_report | sort(attribute='used_pct') | last) if disk_data_valid else {} }}"
+    disk_worst_pct: "{{ (disk_report | map(attribute='used_pct') | map('float') | max) if disk_data_valid else -1.0 }}"
+
+# ---------------------------------------------------------------------------
+# The switch: one value in, one of four branches out.
+# ---------------------------------------------------------------------------
+- name: Route on the utilization value
+  ansible.builtin.set_fact:
+    disk_route: >-
+      {{
+        'fallback' if not disk_data_valid
+        else 'expand' if disk_worst_pct >= (disk_threshold_critical | float)
+        else 'cleanup' if disk_worst_pct >= (disk_threshold_warning | float)
+        else 'ok'
+      }}
+
+- name: Show the measurement and the branch it selected
+  ansible.builtin.debug:
+    msg: >-
+      {{ inventory_hostname }}: {{ disk_worst.mount | default('n/a') }}
+      at {{ disk_worst_pct }}% ->
+      route '{{ disk_route }}'
+      (warning {{ disk_threshold_warning }}%, critical {{ disk_threshold_critical }}%)

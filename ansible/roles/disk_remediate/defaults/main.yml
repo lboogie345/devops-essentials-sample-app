@@ -1,0 +1,22 @@
+---
+# The switch's branch table: route name -> tasks file. An unknown route falls
+# through to fallback.yml, which is the point of having a fallback at all.
+disk_route_tasks:
+  ok: ok.yml
+  cleanup: cleanup.yml
+  expand: expand.yml
+  fallback: fallback.yml
+
+# Package-cache cleanup commands, keyed by the pkg_mgr fact.
+disk_pkg_clean_commands:
+  dnf: dnf clean all
+  yum: yum clean all
+  apt: apt-get clean
+
+# EBS expansion. Set disk_expand_volume_id to skip auto-discovery.
+disk_expand_volume_id: ""
+disk_expand_block_device: ""   # e.g. /dev/nvme0n1 (derived from the mount's device when empty)
+disk_expand_partition: ""      # e.g. 1            (derived from the mount's device when empty)
+
+# How much space a simulated cleanup pretends to reclaim, in percentage points.
+disk_sim_cleanup_gain: 12.0

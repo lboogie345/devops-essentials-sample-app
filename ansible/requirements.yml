@@ -1,0 +1,11 @@
+---
+# Optional collections. ansible-core alone runs the check -> route -> cleanup ->
+# notify(webhook) path. Install these to enable AWS EBS expansion and SMTP mail:
+#   ansible-galaxy collection install -r requirements.yml
+collections:
+  - name: ansible.posix
+    version: ">=1.5.4"
+  - name: community.general
+    version: ">=8.0.0"
+  - name: amazon.aws
+    version: ">=7.0.0"

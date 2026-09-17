@@ -1,0 +1,13 @@
+---
+# Requires: ansible-galaxy collection install community.general
+- name: Send the summary by email
+  community.general.mail:
+    host: "{{ disk_notify_mail_host }}"
+    to: "{{ disk_notify_mail_to }}"
+    from: "{{ disk_notify_mail_from }}"
+    subject: >-
+      [{{ disk_severity | upper }}] disk {{ disk_worst.mount | default('n/a') }}
+      on {{ inventory_hostname }} at {{ disk_after_pct }}%
+    body: "{{ disk_notify_body }}"
+  delegate_to: localhost
+  become: false

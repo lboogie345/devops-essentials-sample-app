@@ -1,0 +1,14 @@
+---
+# Colour/severity mapping used for chat notifications.
+disk_notify_colors:
+  ok: "#2eb886"
+  warning: "#daa038"
+  critical: "#d1352b"
+  unknown: "#7d7d7d"
+disk_notify_titles:
+  ok: "Disk OK - no action taken"
+  warning: "Disk cleanup performed"
+  critical: "Disk capacity expanded"
+  unknown: "Disk check inconclusive - manual review needed"
+# Send an "ok" notification too? Turn off for quiet mode on healthy fleets.
+disk_notify_on_ok: true

@@ -1,0 +1,7 @@
+---
+# Below the warning threshold: report the reading and stop. Doing nothing is a
+# valid outcome, and saying so explicitly is what makes the run auditable.
+- name: Record that no remediation was required
+  ansible.builtin.set_fact:
+    disk_severity: ok
+    disk_actions: "{{ disk_actions + ['No action required - utilization is below ' ~ disk_threshold_warning ~ '%'] }}"

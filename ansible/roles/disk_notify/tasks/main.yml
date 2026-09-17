@@ -1,0 +1,75 @@
+---
+# Step 3 of the workflow: tell the team what was found and what was done about
+# it. The message differs per branch - that specificity is the whole point.
+- name: Render the notification body
+  ansible.builtin.set_fact:
+    disk_notify_body: "{{ lookup('ansible.builtin.template', 'summary.j2') }}"
+
+- name: Print the summary
+  ansible.builtin.debug:
+    msg: "{{ disk_notify_body.split('\n') }}"
+
+- name: Deliver notifications
+  when: disk_severity != 'ok' or (disk_notify_on_ok | bool)
+  block:
+    - name: Ensure the run-log directory exists
+      ansible.builtin.file:
+        path: "{{ disk_notify_log_path | dirname }}"
+        state: directory
+        mode: "0755"
+      delegate_to: localhost
+      become: false
+      run_once: true
+      when: "'log' in disk_notify_channels"
+
+    - name: Append the result to the run log
+      ansible.builtin.lineinfile:
+        path: "{{ disk_notify_log_path }}"
+        line: >-
+          {{ ansible_date_time.iso8601 | default('') }} {{ inventory_hostname }}
+          route={{ disk_route }} severity={{ disk_severity }}
+          mount={{ disk_worst.mount | default('n/a') }}
+          before={{ disk_before_pct }}% after={{ disk_after_pct }}%
+          actions="{{ disk_actions | join('; ') }}"
+        create: true
+        mode: "0644"
+        insertafter: EOF
+      delegate_to: localhost
+      become: false
+      when: "'log' in disk_notify_channels"
+
+    - name: Post to the chat webhook
+      ansible.builtin.uri:
+        url: "{{ disk_notify_webhook_url }}"
+        method: POST
+        body_format: json
+        status_code: [200, 201, 202, 204]
+        body:
+          text: "{{ disk_notify_titles[disk_severity] | default('Disk check') }} - {{ inventory_hostname }}"
+          attachments:
+            - color: "{{ disk_notify_colors[disk_severity] | default('#7d7d7d') }}"
+              title: "{{ inventory_hostname }} {{ disk_worst.mount | default('n/a') }} - {{ disk_route }}"
+              text: "{{ disk_notify_body }}"
+      delegate_to: localhost
+      become: false
+      register: disk_webhook
+      failed_when: false
+      when:
+        - "'webhook' in disk_notify_channels"
+        - (disk_notify_webhook_url | length) > 0
+
+    - name: Warn when the webhook could not be delivered
+      ansible.builtin.debug:
+        msg: "Webhook delivery failed ({{ disk_webhook.status | default('no response') }}) - the run log still has the result."
+      when:
+        - disk_webhook is defined
+        - disk_webhook.skipped is not defined
+        - (disk_webhook.status | default(0) | int) not in [200, 201, 202, 204]
+
+    # Loaded through include_tasks so that ansible-core-only installs never
+    # have to resolve the community.general module name.
+    - name: Email the team
+      ansible.builtin.include_tasks: mail.yml
+      when:
+        - "'mail' in disk_notify_channels"
+        - (disk_notify_mail_to | length) > 0

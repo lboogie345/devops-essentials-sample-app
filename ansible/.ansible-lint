@@ -1,0 +1,12 @@
+---
+# The three roles share one documented variable contract - disk_check produces
+# disk_report/disk_worst/disk_route, disk_remediate acts on it and appends
+# disk_actions, disk_notify reports it. ansible-lint's no-role-prefix rule wants
+# each role to namespace its own set_facts (disk_check_*, disk_remediate_*),
+# which would break that hand-off. The shared "disk_" prefix is the namespace.
+skip_list:
+  - var-naming[no-role-prefix]
+
+exclude_paths:
+  - collections/
+  - ../logs/

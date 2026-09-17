@@ -1,0 +1,19 @@
+---
+# Re-read df so the notification carries a real "after" number rather than an
+# assumption about what cleanup or expansion achieved.
+- name: Measure the filesystems again
+  ansible.builtin.include_role:
+    name: disk_check
+    tasks_from: measure.yml
+  when: not (disk_simulated | bool)
+
+- name: Recalculate utilization for {{ disk_worst.mount | default('n/a') }}
+  ansible.builtin.set_fact:
+    disk_after_pct: "{{ _mount.used_pct | default(disk_before_pct) | float }}"
+    disk_after_available: "{{ _mount.size_available | default(disk_before_available) | int }}"
+  vars:
+    _mount: >-
+      {{ (disk_report | default([])
+          | selectattr('mount', 'equalto', disk_worst.mount | default(''))
+          | list | first) | default({}, true) }}
+  when: not (disk_simulated | bool)

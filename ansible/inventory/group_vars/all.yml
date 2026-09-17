@@ -1,0 +1,64 @@
+---
+# ---------------------------------------------------------------------------
+# Routing thresholds - the "switch node" of the workflow.
+#
+#   used% <  disk_threshold_warning   -> ok        (report only, e.g. 72%)
+#   warning <= used% < critical       -> cleanup   (reclaim space, e.g. 85%)
+#   used% >= disk_threshold_critical  -> expand    (grow the volume, e.g. 97%)
+#   unreadable / missing data         -> fallback  (page a human)
+# ---------------------------------------------------------------------------
+disk_threshold_warning: 80
+disk_threshold_critical: 95
+
+# Which filesystems count. Pseudo filesystems (tmpfs, devtmpfs, overlay...) are
+# excluded by only allowing real on-disk types.
+disk_fstype_allow:
+  - ext3
+  - ext4
+  - xfs
+  - btrfs
+disk_mount_exclude:
+  - /boot
+  - /boot/efi
+# Ignore very small filesystems; they cross thresholds for uninteresting reasons.
+disk_min_size_bytes: 1073741824  # 1 GiB
+
+# ---------------------------------------------------------------------------
+# Remediation switches. Cleanup is safe and on by default; expansion costs
+# money and changes cloud state, so it is opt-in per group or per host.
+# ---------------------------------------------------------------------------
+disk_cleanup_enabled: true
+disk_expand_enabled: false
+
+# Cleanup tuning
+disk_cleanup_package_cache: true
+disk_cleanup_journal: true
+disk_journal_keep_size: 200M
+disk_journal_keep_days: 7
+disk_log_age_days: 14          # delete rotated logs older than this
+disk_tmp_age_days: 7           # delete /tmp entries older than this
+disk_cleanup_paths:            # extra site-specific globs to prune
+  - path: /var/log
+    patterns: ['*.gz', '*.xz', '*.old', '*.[0-9]', '*.[0-9][0-9]']
+    age: "{{ disk_log_age_days }}d"
+  - path: /tmp
+    patterns: ['*']
+    age: "{{ disk_tmp_age_days }}d"
+  - path: /var/cache
+    patterns: ['*']
+    age: 30d
+
+# Expansion tuning (AWS EBS). Requires the amazon.aws collection + boto3.
+disk_expand_percent: 50        # grow the volume by this much
+disk_expand_max_gib: 1000      # never grow past this ceiling
+disk_expand_region: us-east-1
+
+# ---------------------------------------------------------------------------
+# Notification. Any combination of channels; all are optional.
+# ---------------------------------------------------------------------------
+disk_notify_channels: ['log']  # log | webhook | mail
+disk_notify_webhook_url: ""    # Slack/Teams/n8n incoming webhook
+disk_notify_mail_to: ""        # e.g. sre-team@example.com
+disk_notify_mail_from: "ansible-orchestrator@{{ ansible_facts['fqdn'] | default('localhost') }}"
+disk_notify_mail_host: localhost
+disk_notify_log_path: "{{ playbook_dir }}/../logs/disk-utilization.log"

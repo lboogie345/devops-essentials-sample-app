@@ -1,0 +1,29 @@
+---
+# The branch for data the switch cannot route on: no mounts matched the filter,
+# facts were unreadable, or a percentage came back outside 0-100. Never guess a
+# remediation from a value you do not trust - hand it to a human instead.
+- name: Collect the reason the data could not be routed
+  ansible.builtin.set_fact:
+    disk_fallback_reasons: >-
+      {{
+        ([] if (ansible_facts['mounts'] | default([]) | length) > 0
+            else ['No mount facts were returned by the target'])
+        + ([] if (disk_candidates | default([]) | length) > 0
+            else ['No filesystem matched fstype ' ~ (disk_fstype_allow | join('/')) ~ ' and the ' ~ disk_min_size_bytes ~ '-byte minimum'])
+        + ([] if (disk_report | default([]) | length) > 0
+            else ['Utilization report is empty'])
+        + (['Utilization value outside 0-100: ' ~ (disk_report | default([]) | map(attribute='used_pct') | list | string)]
+            if (disk_report | default([]) | length) > 0 and not (disk_data_valid | bool) else [])
+      }}
+
+- name: Record the fallback outcome
+  ansible.builtin.set_fact:
+    disk_severity: unknown
+    disk_actions: >-
+      {{ disk_actions
+         + ['No remediation attempted - disk data could not be validated']
+         + (disk_fallback_reasons | default(['Unknown routing failure'])) }}
+
+- name: Show the fallback diagnosis
+  ansible.builtin.debug:
+    msg: "{{ disk_actions }}"

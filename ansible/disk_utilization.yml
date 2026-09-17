@@ -1,0 +1,65 @@
+---
+# ===========================================================================
+# Disk utilization orchestrator
+#
+#   check  ->  route (switch)  ->  remediate  ->  notify
+#
+# Run it:
+#   ansible-playbook disk_utilization.yml
+#   ansible-playbook disk_utilization.yml --check --diff
+#   ansible-playbook disk_utilization.yml -e target=webservers
+#   ansible-playbook disk_utilization.yml -l db01.example.com -e disk_expand_enabled=true
+# ===========================================================================
+- name: Disk utilization - check, route, remediate, notify
+  hosts: "{{ target | default('disk_managed') }}"
+  become: true
+  gather_facts: true
+  serial: "{{ disk_batch_size | default('100%') }}"
+  pre_tasks:
+    - name: Validate the threshold configuration
+      ansible.builtin.assert:
+        that:
+          - (disk_threshold_warning | int) > 0
+          - (disk_threshold_critical | int) > (disk_threshold_warning | int)
+          - (disk_threshold_critical | int) <= 100
+        fail_msg: >-
+          Thresholds must satisfy 0 < warning < critical <= 100
+          (got warning={{ disk_threshold_warning }}, critical={{ disk_threshold_critical }}).
+        quiet: true
+      tags: always
+
+  tasks:
+    - name: Check, route and remediate
+      block:
+        - name: Measure utilization and select a branch
+          ansible.builtin.include_role:
+            name: disk_check
+          tags: [check]
+
+        - name: Remediate according to the selected branch
+          ansible.builtin.include_role:
+            name: disk_remediate
+          tags: [remediate]
+
+      # Any unexpected failure lands in the same fallback branch as bad data:
+      # the team gets told, and nothing is silently left broken.
+      rescue:
+        - name: Convert the failure into a fallback result
+          ansible.builtin.set_fact:
+            disk_route: fallback
+            disk_severity: unknown
+            disk_simulated: "{{ disk_simulated | default(false) }}"
+            disk_worst: "{{ disk_worst | default({}) }}"
+            disk_before_pct: "{{ disk_before_pct | default(-1.0) }}"
+            disk_after_pct: "{{ disk_after_pct | default(-1.0) }}"
+            disk_reclaimed_bytes: "{{ disk_reclaimed_bytes | default(0) }}"
+            disk_actions: >-
+              {{ (disk_actions | default([])) + [
+                   'Playbook failure in task "' ~ (ansible_failed_task.name | default('unknown')) ~ '": '
+                   ~ (ansible_failed_result.msg | default('no message')) ] }}
+
+      always:
+        - name: Notify the team
+          ansible.builtin.include_role:
+            name: disk_notify
+          tags: [notify]

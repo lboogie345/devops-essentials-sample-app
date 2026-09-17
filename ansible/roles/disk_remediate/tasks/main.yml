@@ -1,0 +1,18 @@
+---
+# Step 2 of the workflow: act on the branch that disk_check selected.
+- name: Snapshot the starting state
+  ansible.builtin.set_fact:
+    disk_before_pct: "{{ disk_worst_pct | float }}"
+    disk_before_available: "{{ disk_worst.size_available | default(0) | int }}"
+    disk_after_pct: "{{ disk_worst_pct | float }}"
+    disk_after_available: "{{ disk_worst.size_available | default(0) | int }}"
+    disk_actions: []
+    disk_severity: unknown
+    disk_simulated: "{{ disk_simulated | default(false) }}"
+
+- name: Run the remediation branch chosen by the switch
+  ansible.builtin.include_tasks: "{{ disk_route_tasks[disk_route] | default('fallback.yml') }}"
+
+- name: Summarise what the branch did
+  ansible.builtin.set_fact:
+    disk_reclaimed_bytes: "{{ (disk_after_available | int) - (disk_before_available | int) }}"

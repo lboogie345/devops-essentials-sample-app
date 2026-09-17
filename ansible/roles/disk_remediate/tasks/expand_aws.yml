@@ -1,0 +1,105 @@
+---
+# Requires: ansible-galaxy collection install amazon.aws  (plus boto3/botocore
+# on the control node and an instance profile or credentials that allow
+# ec2:DescribeVolumes and ec2:ModifyVolume).
+- name: Read EC2 instance metadata
+  amazon.aws.ec2_metadata_facts:
+
+- name: Look up the volumes attached to this instance
+  amazon.aws.ec2_vol_info:
+    region: "{{ disk_expand_region }}"
+    filters:
+      attachment.instance-id: "{{ ansible_facts['ec2_instance_id'] }}"
+  delegate_to: localhost
+  become: false
+  register: disk_vol_info
+
+- name: Select the volume to grow
+  ansible.builtin.set_fact:
+    disk_target_volume: >-
+      {{ (disk_vol_info.volumes | selectattr('id', 'equalto', disk_expand_volume_id) | list | first)
+         if (disk_expand_volume_id | length) > 0
+         else (disk_vol_info.volumes | sort(attribute='size') | last) }}
+
+- name: Fail when no volume could be identified
+  ansible.builtin.assert:
+    that:
+      - disk_target_volume is defined
+      - disk_target_volume.id is defined
+    fail_msg: >-
+      Could not identify the EBS volume backing {{ disk_worst.mount }}.
+      Set disk_expand_volume_id explicitly for this host.
+
+- name: Calculate the new volume size
+  ansible.builtin.set_fact:
+    disk_new_size_gib: >-
+      {{ [ ((disk_target_volume.size | int) * (100 + (disk_expand_percent | int)) / 100) | round(0, 'ceil') | int,
+           disk_expand_max_gib | int ] | min }}
+
+- name: Refuse to shrink or no-op the volume
+  ansible.builtin.assert:
+    that:
+      - (disk_new_size_gib | int) > (disk_target_volume.size | int)
+    fail_msg: >-
+      Volume {{ disk_target_volume.id }} is already at or above the
+      {{ disk_expand_max_gib }} GiB ceiling - raise disk_expand_max_gib
+      or move the data.
+
+- name: Grow the EBS volume to the calculated size
+  amazon.aws.ec2_vol:
+    region: "{{ disk_expand_region }}"
+    id: "{{ disk_target_volume.id }}"
+    instance: "{{ ansible_facts['ec2_instance_id'] }}"
+    volume_size: "{{ disk_new_size_gib | int }}"
+    modify_volume: true
+  delegate_to: localhost
+  become: false
+  register: disk_vol_change
+
+- name: Wait for the kernel to see the larger device
+  ansible.builtin.command:
+    cmd: "lsblk -bno SIZE {{ disk_expand_dev }}"
+  register: disk_dev_size
+  changed_when: false
+  retries: 30
+  delay: 10
+  until: (disk_dev_size.stdout | trim | int) >= ((disk_new_size_gib | int) * 1073741824)
+
+- name: Ensure the partition-growing tools are present
+  ansible.builtin.package:
+    name: cloud-utils-growpart
+    state: present
+
+- name: Grow the partition
+  ansible.builtin.command:
+    cmd: "growpart {{ disk_expand_dev }} {{ disk_expand_part }}"
+  register: disk_growpart
+  changed_when: "'CHANGED' in (disk_growpart.stdout | default(''))"
+  failed_when:
+    - disk_growpart.rc != 0
+    - "'NOCHANGE' not in (disk_growpart.stdout | default(''))"
+
+- name: Grow an XFS filesystem
+  ansible.builtin.command:
+    cmd: "xfs_growfs {{ disk_worst.mount }}"
+  register: disk_xfs_grow
+  changed_when: disk_xfs_grow.rc == 0
+  when: disk_worst.fstype == 'xfs'
+
+- name: Grow an ext filesystem
+  ansible.builtin.command:
+    cmd: "resize2fs {{ disk_worst.device }}"
+  register: disk_ext_grow
+  changed_when: disk_ext_grow.rc == 0
+  when: disk_worst.fstype in ['ext3', 'ext4']
+
+- name: Record the expansion actions
+  ansible.builtin.set_fact:
+    disk_severity: critical
+    disk_actions: >-
+      {{ disk_actions + [
+           'Expanded EBS volume ' ~ disk_target_volume.id ~ ' from '
+             ~ disk_target_volume.size ~ ' GiB to ' ~ disk_new_size_gib ~ ' GiB',
+           'Grew partition ' ~ disk_expand_dev ~ ' ' ~ disk_expand_part
+             ~ ' and the ' ~ disk_worst.fstype ~ ' filesystem on ' ~ disk_worst.mount
+         ] }}

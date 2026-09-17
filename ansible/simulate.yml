@@ -1,0 +1,34 @@
+---
+# ===========================================================================
+# Walk every branch of the switch without waiting for a disk to fill up.
+#
+#   ansible-playbook simulate.yml
+#   ansible-playbook simulate.yml -e '{"disk_scenarios":[{"name":"custom","percent":91}]}'
+#
+# Nothing is deleted and no cloud API is called: the remediation roles detect
+# disk_simulated and only report what they would have done.
+# ===========================================================================
+- name: Simulate the disk utilization workflow
+  hosts: "{{ target | default('simulation') }}"
+  become: false
+  gather_facts: true
+  vars:
+    disk_expand_enabled: true      # so the 96% branch shows the expansion plan
+    disk_notify_channels: ['log']
+    disk_scenarios:
+      - name: healthy
+        percent: 75
+      - name: needs cleanup
+        percent: 85
+      - name: needs expansion
+        percent: 96
+      - name: invalid reading
+        percent: 150
+
+  tasks:
+    - name: Run each scenario
+      ansible.builtin.include_tasks: tasks/simulate_one.yml
+      loop: "{{ disk_scenarios }}"
+      loop_control:
+        loop_var: scenario
+        label: "{{ scenario.name }} ({{ scenario.percent }}%)"

@@ -1,3 +1,7 @@
 .DS_Store
 .gradle
 src/*.state
+
+# Ansible orchestrator run logs
+logs/
+ansible/collections/

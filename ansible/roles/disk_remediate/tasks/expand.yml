@@ -1,0 +1,47 @@
+---
+# Above 95%: reclaiming space will not save this filesystem, so add capacity.
+# Cleanup runs first anyway - it is cheap, and it buys time while the volume
+# modification settles.
+- name: Run a cleanup pass before adding capacity
+  ansible.builtin.include_tasks: cleanup.yml
+
+- name: Record that expansion is not permitted on this host
+  ansible.builtin.set_fact:
+    disk_severity: critical
+    disk_actions: >-
+      {{ disk_actions + ['Expansion disabled (disk_expand_enabled=false) - capacity must be added manually'] }}
+  when: not (disk_expand_enabled | bool)
+
+- name: Expand the backing volume
+  when: disk_expand_enabled | bool
+  block:
+    - name: Derive the block device and partition to grow
+      ansible.builtin.set_fact:
+        disk_expand_dev: >-
+          {{ disk_expand_block_device if (disk_expand_block_device | length) > 0
+             else (disk_worst.device | regex_replace('p[0-9]+$', '') if 'nvme' in (disk_worst.device | default(''))
+                   else disk_worst.device | regex_replace('[0-9]+$', '')) }}
+        disk_expand_part: >-
+          {{ disk_expand_partition if (disk_expand_partition | length) > 0
+             else (disk_worst.device | default('') | regex_search('[0-9]+$')) | default('1', true) }}
+
+    - name: Describe the expansion that would run
+      ansible.builtin.set_fact:
+        disk_severity: critical
+        disk_actions: >-
+          {{ disk_actions + [
+               'Would grow the EBS volume behind ' ~ disk_expand_dev ~ ' by ' ~ disk_expand_percent ~ '%,'
+               ~ ' then run growpart ' ~ disk_expand_dev ~ ' ' ~ disk_expand_part
+               ~ ' and grow the ' ~ (disk_worst.fstype | default('xfs')) ~ ' filesystem on ' ~ disk_worst.mount
+             ] }}
+        disk_after_pct: "{{ ((disk_before_pct | float) * 100.0 / (100.0 + (disk_expand_percent | float))) | round(1) }}"
+      when: disk_simulated | bool
+
+    # Real cloud work lives in its own file so ansible-core-only installs
+    # never resolve the amazon.aws module names during a simulation.
+    - name: Modify the EBS volume and grow the filesystem
+      ansible.builtin.include_tasks: expand_aws.yml
+      when: not (disk_simulated | bool)
+
+- name: Measure the filesystem again
+  ansible.builtin.include_tasks: measure_after.yml

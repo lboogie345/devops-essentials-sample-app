@@ -1,0 +1,42 @@
+---
+# Utilization is read from df rather than from the mount facts on purpose.
+# ansible_facts.mounts exposes block_available but not block_free, so a
+# facts-based percentage counts root-reserved blocks as "used" and drifts from
+# the number an operator sees when they run df by hand. Thresholds have to mean
+# the same thing in both places.
+- name: Read filesystem utilization
+  ansible.builtin.command:
+    cmd: df -B1 --output=source,fstype,size,used,avail,pcent,target
+  register: disk_df
+  changed_when: false
+  failed_when: false
+  check_mode: false   # read-only, so --check still produces a real report
+
+- name: Reset the report before measuring
+  ansible.builtin.set_fact:
+    disk_report: []
+
+- name: Build the utilization report
+  ansible.builtin.set_fact:
+    disk_report: "{{ disk_report + [entry] }}"
+  vars:
+    # maxsplit=6 keeps mount points that contain spaces intact.
+    _f: "{{ item.split(none, 6) }}"
+    entry:
+      device: "{{ _f[0] }}"
+      fstype: "{{ _f[1] }}"
+      size_total: "{{ _f[2] | int }}"
+      size_used: "{{ _f[3] | int }}"
+      size_available: "{{ _f[4] | int }}"
+      used_pct: "{{ _f[5] | regex_replace('%', '') | float }}"
+      mount: "{{ _f[6] | trim }}"
+  loop: "{{ (disk_df.stdout_lines | default([]))[1:] }}"
+  loop_control:
+    label: "{{ item }}"
+  when:
+    - (disk_df.rc | default(1)) == 0
+    - (_f | length) == 7
+    - _f[1] in disk_fstype_allow
+    - (_f[6] | trim) not in disk_mount_exclude
+    - (_f[2] | int) >= (disk_min_size_bytes | int)
+    - _f[5] is match('^[0-9]+%$')

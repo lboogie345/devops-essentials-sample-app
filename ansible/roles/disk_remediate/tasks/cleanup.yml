@@ -1,0 +1,99 @@
+---
+# 80-95%: reclaim space in place. Caches, vacuumed journals and rotated logs
+# only - nothing here touches a live log file or application data.
+- name: Record that cleanup is disabled on this host
+  ansible.builtin.set_fact:
+    disk_severity: warning
+    disk_actions: "{{ disk_actions + ['Cleanup disabled (disk_cleanup_enabled=false) - reported only'] }}"
+  when: not (disk_cleanup_enabled | bool)
+
+- name: Reclaim space
+  when: disk_cleanup_enabled | bool
+  block:
+    - name: Clean the package manager cache
+      ansible.builtin.command:
+        cmd: "{{ disk_pkg_clean_commands[ansible_facts['pkg_mgr']] }}"
+      register: disk_pkg_clean
+      changed_when: disk_pkg_clean.rc == 0
+      when:
+        - disk_cleanup_package_cache | bool
+        - ansible_facts['pkg_mgr'] in disk_pkg_clean_commands
+        - not (disk_simulated | bool)
+
+    - name: Vacuum the systemd journal
+      ansible.builtin.command:
+        cmd: >-
+          journalctl --vacuum-size={{ disk_journal_keep_size }}
+          --vacuum-time={{ disk_journal_keep_days }}d
+      register: disk_journal_vacuum
+      changed_when: "'vacuuming done' in (disk_journal_vacuum.stderr | default('') | lower)"
+      when:
+        - disk_cleanup_journal | bool
+        - ansible_facts['service_mgr'] == 'systemd'
+        - not (disk_simulated | bool)
+
+    # Read-only, so it runs even under --check and the report stays honest.
+    - name: Find prunable files
+      ansible.builtin.find:
+        paths: "{{ item.path }}"
+        patterns: "{{ item.patterns }}"
+        age: "{{ item.age }}"
+        age_stamp: mtime
+        file_type: file
+        recurse: true
+      loop: "{{ disk_cleanup_paths }}"
+      loop_control:
+        label: "{{ item.path }} (older than {{ item.age }})"
+      register: disk_find
+      check_mode: false
+      changed_when: false
+
+    - name: Total the reclaimable bytes
+      ansible.builtin.set_fact:
+        disk_cleanup_files: "{{ disk_find.results | map(attribute='files') | flatten }}"
+    - name: Total the reclaimable bytes (sum)
+      ansible.builtin.set_fact:
+        disk_cleanup_bytes: "{{ disk_cleanup_files | map(attribute='size') | map('int') | sum }}"
+
+    - name: Delete prunable files
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ disk_cleanup_files }}"
+      loop_control:
+        label: "{{ item.path }} ({{ (item.size | int / 1048576) | round(1) }} MiB)"
+      when: not (disk_simulated | bool)
+
+    # Report what actually happened: under --check or a simulation nothing was
+    # deleted, and the notification must not claim otherwise.
+    - name: Record the cleanup actions
+      ansible.builtin.set_fact:
+        disk_severity: warning
+        disk_actions: "{{ disk_actions + _entries }}"
+      vars:
+        _dry: "{{ (disk_simulated | default(false)) or ansible_check_mode }}"
+        _clear: "{{ 'Would clear' if _dry else 'Cleared' }}"
+        _vacuum: "{{ 'Would vacuum' if _dry else 'Vacuumed' }}"
+        _remove: "{{ 'Would remove' if _dry else 'Removed' }}"
+        _entries: >-
+          {{ ([_clear ~ ' the ' ~ ansible_facts['pkg_mgr'] ~ ' package cache']
+                if (disk_cleanup_package_cache | bool)
+                   and ansible_facts['pkg_mgr'] in disk_pkg_clean_commands else [])
+           + ([_vacuum ~ ' the systemd journal to ' ~ disk_journal_keep_size
+                ~ ' / ' ~ disk_journal_keep_days ~ ' days']
+                if (disk_cleanup_journal | bool)
+                   and ansible_facts['service_mgr'] == 'systemd' else [])
+           + [_remove ~ ' ' ~ (disk_cleanup_files | length) ~ ' aged files ('
+                ~ ((disk_cleanup_bytes | int / 1048576) | round(1)) ~ ' MiB) from '
+                ~ (disk_cleanup_paths | map(attribute='path') | join(', '))] }}
+
+- name: Apply the simulated cleanup result
+  ansible.builtin.set_fact:
+    disk_after_pct: "{{ [((disk_before_pct | float) - (disk_sim_cleanup_gain | float)), 0.0] | max }}"
+    disk_after_available: >-
+      {{ ((disk_worst.size_total | default(0) | int)
+          * (100.0 - [((disk_before_pct | float) - (disk_sim_cleanup_gain | float)), 0.0] | max) / 100.0) | int }}
+  when: disk_simulated | bool
+
+- name: Measure the filesystem again
+  ansible.builtin.include_tasks: measure_after.yml

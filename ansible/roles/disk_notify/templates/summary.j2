@@ -1,0 +1,13 @@
+[{{ disk_severity | upper }}] {{ disk_notify_titles[disk_severity] | default('Disk check') }}
+Host        : {{ inventory_hostname }} ({{ ansible_facts['distribution'] | default('unknown') }} {{ ansible_facts['distribution_version'] | default('') }})
+Filesystem  : {{ disk_worst.mount | default('n/a') }} on {{ disk_worst.device | default('n/a') }} ({{ disk_worst.fstype | default('n/a') }})
+Utilization : {{ disk_before_pct }}% -> {{ disk_after_pct }}%{% if (disk_reclaimed_bytes | int) > 0 %} ({{ (disk_reclaimed_bytes | int / 1073741824) | round(2) }} GiB recovered){% endif %}
+
+Thresholds  : warning {{ disk_threshold_warning }}%, critical {{ disk_threshold_critical }}%
+Route taken : {{ disk_route }}{% if disk_simulated | bool %} (SIMULATION){% endif %}
+
+Actions:
+{% for action in disk_actions %}
+  - {{ action }}
+{% endfor %}
+Checked at  : {{ ansible_date_time.iso8601 | default('unknown') }}

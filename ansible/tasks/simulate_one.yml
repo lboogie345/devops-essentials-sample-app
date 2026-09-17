@@ -1,0 +1,21 @@
+---
+# One simulated reading end to end: check -> route -> remediate -> notify.
+- name: Announce the scenario
+  ansible.builtin.debug:
+    msg: >-
+      ===== {{ scenario.name }}: pretending the monitored filesystem reports
+      {{ scenario.percent }}% used =====
+
+- name: Measure and route the simulated reading
+  ansible.builtin.include_role:
+    name: disk_check
+  vars:
+    disk_sim_percent: "{{ scenario.percent }}"
+
+- name: Remediate the simulated reading
+  ansible.builtin.include_role:
+    name: disk_remediate
+
+- name: Notify for the simulated reading
+  ansible.builtin.include_role:
+    name: disk_notify

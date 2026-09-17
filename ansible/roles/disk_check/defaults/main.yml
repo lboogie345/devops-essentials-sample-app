@@ -1,0 +1,8 @@
+---
+# Simulation hooks. Set disk_sim_percent to exercise a branch without waiting
+# for a real filesystem to fill up (see simulate.yml).
+# disk_sim_percent: 85
+disk_sim_mount: /
+disk_sim_device: /dev/nvme0n1p1
+disk_sim_fstype: xfs
+disk_sim_size_total: 53687091200  # 50 GiB
